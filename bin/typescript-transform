@@ -1,0 +1,89 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Spatie\TypeScriptTransformer\Formatters\PrettierFormatter;
+use Spatie\TypeScriptTransformer\Structures\TransformedType;
+use Spatie\TypeScriptTransformer\TypeScriptTransformer;
+use Spatie\TypeScriptTransformer\TypeScriptTransformerConfig;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\SingleCommandApplication;
+use Symfony\Component\Console\Style\SymfonyStyle;
+
+// use craft\elements\Tag;
+use Spatie\TypeScriptTransformer\Collectors\DefaultCollector;
+use Spatie\TypeScriptTransformer\Collectors\EnumCollector;
+use chasegiunta\craftjs\collectors\CraftCollector;
+use Spatie\TypeScriptTransformer\Writers\ModuleWriter;
+
+/**
+ * Transformers take PHP classes(e.g., enums) as an input and will output
+ * a TypeScript representation of the PHP class.
+ */
+$transformers = [
+  Spatie\TypeScriptTransformer\Transformers\SpatieEnumTransformer::class,
+  chasegiunta\craftjs\transformers\CallableTransformer::class,
+  Spatie\TypeScriptTransformer\Transformers\DtoTransformer::class,
+];
+
+(new SingleCommandApplication())
+  ->setName('TypeScript Transform')
+  ->addArgument('output_file', InputArgument::REQUIRED, 'Writes the generated TypeScript to this file')
+  ->addArgument('paths', InputArgument::REQUIRED | InputArgument::IS_ARRAY, 'Paths with classes to transform')
+  ->addOption('enums', 'e', InputOption::VALUE_NONE, 'Use native TypeScript enums')
+  ->addOption('format', 'f', InputOption::VALUE_NONE, 'Format the output')
+  ->setCode(function (
+    InputInterface $input,
+    OutputInterface $output
+  ) use ($transformers): int {
+    $io = new SymfonyStyle($input, $output);
+
+    $config = TypeScriptTransformerConfig::create()
+      ->collectors([CraftCollector::class])
+      ->autoDiscoverTypes(...$input->getArgument('paths'))
+      ->transformers($transformers)
+      ->transformToNativeEnums($input->getOption('enums'))
+      ->formatter($input->getOption('format') ? PrettierFormatter::class : null)
+      ->outputFile($input->getArgument('output_file'))
+      ->writer(ModuleWriter::class);
+
+    $transformer = new TypeScriptTransformer($config);
+
+    try {
+      $results = $transformer->transform();
+    } catch (Exception $exception) {
+      $io->error($exception->getMessage());
+      // $io->info("\nStack trace:\n" . $exception->getTraceAsString());
+      $trace = array_map(function ($frame) {
+        $args = is_array($frame['args']) ? json_encode($frame['args']) : '';
+        return [
+          'file' => $frame['file'] ?? '',
+          'line' => $frame['line'] ?? '',
+          'function' => $frame['function'] ?? '',
+          'args' => strlen($args) > 60 ? '...' . substr($args, -60) : $args,
+        ];
+      }, $exception->getTrace());
+
+      $io->table(['File', 'Line', 'Function', 'Args'], $trace);
+
+      return 1;
+    }
+
+    $io->table(
+      ['PHP class', 'TypeScript entity'],
+      array_map(
+        fn (string $class, TransformedType $type) => [$class, $type->getTypeScriptName()],
+        array_keys((array) $results->getIterator()),
+        array_values((array) $results->getIterator())
+      )
+    );
+
+    $io->info("Transformed {$results->count()} PHP types to TypeScript");
+
+    return 0;
+  })
+  ->run();

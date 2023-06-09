@@ -1,0 +1,18 @@
+{
+  "name": "craft-js",
+  "version": "0.1",
+  "type": "module",
+  "files": [
+    "src/web/assets/craft/dist"
+  ],
+  "main": "src/web/assets/craft/src/craft.ts",
+  "scripts": {
+    "build": "vite build",
+    "build-types": "./bin/typescript-transform ./types/craft-generated.d.ts ./vendor/craftcms/cms/src/elements/ --format",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "vite": "^5.1.3",
+    "vitest": "^1.1.1"
+  }
+}
