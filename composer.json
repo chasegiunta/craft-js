@@ -1,0 +1,48 @@
+{
+    "name": "chasegiunta/craft-js",
+    "description": "An isomorphic javascript client for Craft CMS",
+    "type": "craft-plugin",
+    "license": "mit",
+    "support": {
+        "email": "me@chasegiunta.com",
+        "issues": "https://github.com/chasegiunta/craft-js/issues?state=open",
+        "source": "https://github.com/chasegiunta/craft-js",
+        "docs": "https://github.com/chasegiunta/craft-js",
+        "rss": "https://github.com/chasegiunta/craft-js/releases.atom"
+    },
+    "require": {
+        "php": ">=8.0.2",
+        "craftcms/cms": "^4.3.10"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "chasegiunta\\craftjs\\": "src/"
+        }
+    },
+    "extra": {
+        "handle": "craft-js",
+        "name": "Craft JS",
+        "developer": "Chase Giunta",
+        "documentationUrl": "https://github.com/chasegiunta/craft-js"
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --ansi --fix",
+        "phpstan": "phpstan --memory-limit=1G"
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.0.2"
+        },
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        }
+    }
+}
+
