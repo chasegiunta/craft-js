@@ -28,11 +28,6 @@ class CraftQuery {
     return this;
   }
 
-  // quotle(id: number) {
-  //   this.filters.push(`quotle=${id}`);
-  //   return this;
-  // }
-
   orderBy(field: string, direction: string) {
     this.filters.orderBy = "${field} ${direction}";
     // this.filters.push(`orderBy=${field}${direction === "desc" ? "|desc" : ""}`);
@@ -41,6 +36,11 @@ class CraftQuery {
 
   select(columms: string[]) {
     this.filters.select = columms.join(",");
+    return this;
+  }
+
+  with(columms: string[]) {
+    this.filters.with = columms.join(",");
     return this;
   }
 
@@ -80,20 +80,24 @@ class CraftQuery {
 function createCraftProxy(apiUrl = "") {
   const craftQuery = new CraftQuery(apiUrl);
 
-  return new Proxy(craftQuery, {
+  const craftProxy = new Proxy(craftQuery, {
     get(target, prop) {
       if (prop in target) {
         return target[prop];
       } else {
         return function (...args) {
           target.filters[prop] = args.join(",");
-          return craftQuery;
+          return craftProxy;
         };
       }
     },
   });
+
+  return craftProxy;
 }
 
-const Craft = createCraftProxy;
+const Craft = (apiUrl = "") => {
+  return createCraftProxy(apiUrl);
+};
 
 export default Craft;
