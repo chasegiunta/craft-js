@@ -31,7 +31,6 @@ class CraftController extends Controller
 
         // Get params from request
         $params = $request->getQueryParams();
-        ray($params);
 
         if (!isset($params['elementType'])) {
             $response->data = [
@@ -44,7 +43,6 @@ class CraftController extends Controller
             switch ($params['elementType']) {
                 case 'entries':
                     $elementType = Entry::class;
-                    // $elementType = ElementQuery::class;
                     break;
 
                 default:
@@ -55,7 +53,7 @@ class CraftController extends Controller
         $elementType = $elementType::find();
 
         foreach ($params as $param => $value) {
-            if (in_array($param, ['elementType', 'select'])) {
+            if (in_array($param, ['elementType', 'select', 'with'])) {
                 continue;
             }
 
@@ -63,33 +61,26 @@ class CraftController extends Controller
                 $value = $value + 0;
             }
 
-            $elementType->$param($value);
+            if ($value) {
+                $elementType->$param($value);
+            } else {
+                $elementType->$param();
+            }
         }
-
-        // if (isset($params['section'])) {
-        //     $elementType->section($params['section']);
-        // }
-
-        // if (isset($params['limit'])) {
-        //     $elementType->limit($params['limit']);
-        // }
-
-        // if (isset($params['offset'])) {
-        //     $elementType->offset($params['offset']);
-        // }
-
-        // if (isset($params['orderBy'])) {
-        //     $elementType->orderBy($params['orderBy']);
-        // }
 
         if (isset($params['select'])) {
             $select = explode(',', $params['select']);
-
-            // Needs section ID for some reason (Craft CMS bug?)
             $select[] = 'sectionId';
-
-            $elementType->select($select);
+            $params['select'] = implode(',', $select);
+            $elementType->select($params['select']);
         }
+
+        if (isset($params['with'])) {
+            $with = explode(',', $params['with']);
+            $elementType->with($with);
+        }
+
+        // $elementType->cache();
 
         $data = $elementType->all();
 
@@ -97,7 +88,7 @@ class CraftController extends Controller
         //     return $entry->toArray();
         // }, $data);
 
-        ray($data);
+        // ray($data);
 
         // // Prune $data to only return the columns we selected
         // if (isset($params['select'])) {

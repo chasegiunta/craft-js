@@ -61,3 +61,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/composer.lock
