@@ -9,6 +9,8 @@ use craft\elements\db\ElementQuery;
 use craft\web\Controller;
 use yii\web\Response;
 
+use craft\web\twig\variables\CraftVariable;
+
 /**
  * Craft controller
  */
@@ -32,25 +34,50 @@ class CraftController extends Controller
         // Get params from request
         $params = $request->getQueryParams();
 
-        if (!isset($params['elementType'])) {
-            $response->data = [
-                'success' => false,
-                'message' => 'Missing elementType',
-                'request' => $request->getQueryParams(),
-            ];
-            // $entries->section($params['section']);
-        } else {
+        $craftElementClass = null;
+        $customClass = null;
+
+        if (isset($params['elementType'])) {
             switch ($params['elementType']) {
                 case 'entries':
-                    $elementType = Entry::class;
+                    $craftElementClass = Entry::class;
                     break;
-
                 default:
                     break;
             }
         }
 
-        $elementType = $elementType::find();
+        if ($craftElementClass == null) {
+            // If no element query is defined, see if trying to access Craft variable
+            $craftVariable = new CraftVariable();
+            $components = $craftVariable->components;
+
+            // If any of the params match any of the components, return that component
+            foreach (array_keys($components) as $component) {
+                if (in_array($component, array_keys($params))) {
+                    $customClass = $components[$component];
+                    unset($params[$component]);
+                    break;
+                }
+            }
+        }
+
+        if (!isset($craftElementClass) && !isset($customClass)) {
+            $response->data = [
+                'success' => false,
+                'message' => 'Missing elementType or custom class',
+                'request' => $request->getQueryParams(),
+            ];
+        }
+
+        if ($craftElementClass) {
+            $craftElementClass = $craftElementClass::find();
+            $queryBuilder = $craftElementClass;
+        } else if ($customClass) {
+            $queryBuilder = new $customClass;
+        }
+
+
 
         foreach ($params as $param => $value) {
             if (in_array($param, ['elementType', 'select', 'with'])) {
@@ -62,9 +89,9 @@ class CraftController extends Controller
             }
 
             if ($value) {
-                $elementType->$param($value);
+                $queryBuilder->$param($value);
             } else {
-                $elementType->$param();
+                $queryBuilder = $queryBuilder->$param();
             }
         }
 
@@ -72,17 +99,19 @@ class CraftController extends Controller
             $select = explode(',', $params['select']);
             $select[] = 'sectionId';
             $params['select'] = implode(',', $select);
-            $elementType->select($params['select']);
+            $queryBuilder->select($params['select']);
         }
 
         if (isset($params['with'])) {
             $with = explode(',', $params['with']);
-            $elementType->with($with);
+            $queryBuilder->with($with);
         }
 
-        // $elementType->cache();
-
-        $data = $elementType->all();
+        if ($craftElementClass) {
+            $data = $queryBuilder->all();
+        } else {
+            $data = $queryBuilder;
+        }
 
         // $data = array_map(function ($entry) {
         //     return $entry->toArray();
