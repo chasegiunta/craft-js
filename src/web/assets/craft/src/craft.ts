@@ -34,6 +34,11 @@ class CraftQuery {
     return this;
   }
 
+  asArray() {
+    this.filters.asArray = true;
+    return this;
+  }
+
   select(columms: string[]) {
     this.filters.select = columms.join(",");
     return this;
