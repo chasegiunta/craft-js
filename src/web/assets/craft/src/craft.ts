@@ -61,6 +61,7 @@ class CraftQuery {
       options
     );
     const data = await response.json();
+    this.filters = {};
     return data;
   }
 
