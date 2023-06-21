@@ -80,7 +80,7 @@ class CraftController extends Controller
 
 
         foreach ($params as $param => $value) {
-            if (in_array($param, ['elementType', 'select', 'with'])) {
+            if (in_array($param, ['elementType', 'select', 'with', 'prune', 'asArray'])) {
                 continue;
             }
 
@@ -118,20 +118,15 @@ class CraftController extends Controller
         // }, $data);
 
         // ray($data);
-
         // // Prune $data to only return the columns we selected
-        // if (isset($params['select'])) {
-        //     $select = explode(',', $params['select']);
+        if ($craftElementClass && isset($params['prune'])) {
+            $prune = explode(',', $params['prune']);
 
-        //     // Convert entry to array
-        //     $data = array_map(function ($entry) {
-        //         return $entry->toArray();
-        //     }, $data);
-
-        //     foreach ($data as $key => $entry) {
-        //         $data[$key] = array_intersect_key($entry, array_flip($select));
-        //     }
-        // }
+            foreach ($data as $key => $entry) {
+                $entry = $entry->toArray();
+                $data[$key] = array_intersect_key($entry, array_flip($prune));
+            }
+        }
 
 
         $response->data = [
