@@ -152,21 +152,38 @@ class CraftController extends Controller
                     // TODO: Determine if we're accessing SuperTable, Matrix, or some other element
 
                     // Assume we're accessing SuperTable
-                    $blocks = $entry[$entryProperty]->all();
-                    foreach ($blocks as $block) {
-                        // ray($block);
-                        $values = [];
-                        foreach ($block->getFieldLayout()->getCustomFields() as $field) {
-                            // if $field->handle is in $methods, get the value
-                            if (in_array($field->handle, $methods)) {
-                                $value = $block->getFieldValue($field->handle);
+                    $elements = $entry[$entryProperty]->all();
+
+                    foreach ($elements as $element) {
+                        if (!is_object($element)) {
+                            continue;
+                        }
+                        $craftNamespace = 'craft\\elements\\'; // Specify the namespace you want to check
+
+                        $className = get_class($element);
+                        if (strpos($className, $craftNamespace) === 0) {
+                            // This is a Craft element
+                            foreach ($methods as $method) {
+                                $value = $element->$method;
                                 // add to $nestedProperties
-                                $nestedProperties[$key][$entryProperty][$field->handle] = $value;
-
-                                // $data[$key][$entryProperty][$field->handle] = $value;
+                                $nestedProperties[$key][$entryProperty][$method] = $value;
                             }
+                        } else if ($element instanceof \verbb\supertable\elements\SuperTableBlockElement) {
+                            // If $element is an instance of SuperTableBlockElement
+                            // Loop through each field in the SuperTable field layout
+                            $values = [];
+                            foreach ($element->getFieldLayout()->getCustomFields() as $field) {
+                                // if $field->handle is in $methods, get the value
+                                if (in_array($field->handle, $methods)) {
+                                    $value = $element->getFieldValue($field->handle);
+                                    // add to $nestedProperties
+                                    $nestedProperties[$key][$entryProperty][$field->handle] = $value;
 
-                            //     // $data[$key][$entryProperty][$method] = $value;
+                                    // $data[$key][$entryProperty][$field->handle] = $value;
+                                }
+
+                                //     // $data[$key][$entryProperty][$method] = $value;
+                            }
                         }
                     }
                 }
