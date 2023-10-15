@@ -1,7 +1,17 @@
 class CraftQuery {
   apiUrl: string;
   endpoint: string;
-  filters: {};
+  filters: {
+    elementType?: string;
+    section?: string;
+    limit?: number;
+    authorId?: number;
+    orderBy?: string;
+    asArray?: boolean;
+    select?: string;
+    with?: string;
+    paginate?: number;
+  };
   constructor(apiUrl: string) {
     this.apiUrl = apiUrl;
     this.endpoint = `/actions/craft-js/craft`;
@@ -46,6 +56,11 @@ class CraftQuery {
 
   with(columms: string[]) {
     this.filters.with = columms.join(",");
+    return this;
+  }
+
+  paginate(page: number) {
+    this.filters.paginate = page;
     return this;
   }
 

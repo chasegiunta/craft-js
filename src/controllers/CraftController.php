@@ -9,6 +9,10 @@ use craft\elements\db\ElementQuery;
 use craft\web\Controller;
 use yii\web\Response;
 
+// For Pagination
+use craft\db\Paginator;
+use craft\web\twig\variables\Paginate;
+
 use craft\web\twig\variables\CraftVariable;
 
 /**
@@ -80,7 +84,7 @@ class CraftController extends Controller
 
 
         foreach ($params as $param => $value) {
-            if (in_array($param, ['elementType', 'select', 'with', 'prune', 'asArray'])) {
+            if (in_array($param, ['elementType', 'select', 'with', 'prune', 'asArray', 'paginate'])) {
                 continue;
             }
 
@@ -107,8 +111,30 @@ class CraftController extends Controller
             $queryBuilder->with($with);
         }
 
+        $paginate = $request->getQueryParam('paginate', false);
+
         if ($craftElementClass) {
-            $data = $queryBuilder->all();
+
+            if ($paginate) {
+                /** @var Query $query */
+                $paginator = new Paginator((clone $queryBuilder)->limit(null), [
+                    'currentPage' => $paginate,
+                    'pageSize' => $queryBuilder->limit ?: 100,
+                ]);
+
+                $paginated = Paginate::create($paginator);
+                $data = $paginator->getPageResults();
+
+                $paginationInfo = [
+                    'totalPages' => $paginated->totalPages,
+                    'currentPage' => $paginated->currentPage,
+                    'total' => $paginated->total,
+                    'first' => $paginated->first,
+                    'last' => $paginated->last,
+                ];
+            } else {
+                $data = $queryBuilder->all();
+            }
         } else {
             $data = $queryBuilder;
         }
@@ -203,12 +229,18 @@ class CraftController extends Controller
         }
 
 
-        $response->data = [
+        $responseData = [
             'success' => true,
             'message' => 'CraftController actionIndex()',
             'request' => $request->getQueryParams(),
             'data' => $data,
         ];
+
+        if ($paginate) {
+            $responseData['pagination'] = $paginationInfo;
+        }
+
+        $response->data = $responseData;
 
         return $response;
     }
