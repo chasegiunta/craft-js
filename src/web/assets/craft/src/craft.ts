@@ -12,6 +12,9 @@ class CraftQuery {
     with?: string;
     paginate?: number;
   };
+
+  [key: string]: any; // Index signature
+
   constructor(apiUrl: string) {
     this.apiUrl = apiUrl;
     this.endpoint = `/actions/craft-js/craft`;
