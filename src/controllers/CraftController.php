@@ -13,6 +13,10 @@ use yii\web\Response;
 use craft\db\Paginator;
 use craft\web\twig\variables\Paginate;
 
+// For Caching
+use yii\caching\TagDependency;
+
+
 use craft\web\twig\variables\CraftVariable;
 
 /**
@@ -37,6 +41,22 @@ class CraftController extends Controller
 
         // Get params from request
         $params = $request->getQueryParams();
+
+        if (isset($params['cache'])) {
+            $cacheKey = 'query_' . md5(json_encode($params));
+            $data = Craft::$app->getCache()->get($cacheKey);
+
+            if ($data !== false) {
+                $response->data = [
+                    'success' => true,
+                    'message' => 'CraftController actionIndex()',
+                    'request' => $request->getQueryParams(),
+                    'data' => $data,
+                    'cached' => true,
+                ];
+                return $response;
+            }
+        }
 
         $craftElementClass = null;
         $customClass = null;
@@ -134,6 +154,15 @@ class CraftController extends Controller
                 ];
             } else {
                 $data = $queryBuilder->all();
+            }
+
+            // if $cacheKey is defined, cache the data
+            if (isset($cacheKey)) {
+                // Create a dependency on the 'entry_updated' tag
+                // In order for this to work, we need to invalidate the cache tag on entry save (TagDependency::invalidate(Craft::$app->getCache(), 'entry_updated'))
+                $dependency = new TagDependency(['tags' => 'entry_updated']);
+                // Set the result to cache for 1 hour (3600 seconds)
+                Craft::$app->getCache()->set($cacheKey, $data, 3600, $dependency);
             }
         } else {
             $data = $queryBuilder;
@@ -234,6 +263,7 @@ class CraftController extends Controller
             'message' => 'CraftController actionIndex()',
             'request' => $request->getQueryParams(),
             'data' => $data,
+            'cached' => false,
         ];
 
         if ($paginate) {
