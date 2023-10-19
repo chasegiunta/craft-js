@@ -21,50 +21,72 @@ class CraftQuery {
     this.filters = {};
   }
 
+  isBatchMode = false;
+
+  private clone(): CraftQuery {
+    const newQuery = new CraftQuery(this.apiUrl);
+    newQuery.filters = { ...this.filters };
+    return newQuery;
+  }
+
+  // A method to get filters without clearing them
+  getFilters() {
+    return this.filters;
+  }
+
   entries() {
-    this.filters.elementType = "entries";
-    return this;
+    const newQuery = this.clone();
+    newQuery.filters.elementType = "entries";
+    return newQuery;
   }
 
   section(sectionName: string) {
-    this.filters.section = sectionName;
-    return this;
+    const newQuery = this.clone();
+    newQuery.filters.section = sectionName;
+    return newQuery;
   }
 
   limit(count: number) {
-    this.filters.limit = count;
-    return this;
+    const newQuery = this.clone();
+    newQuery.filters.limit = count;
+    return newQuery;
   }
 
   authorId(id: number) {
-    this.filters.authorId = id;
-    return this;
+    const newQuery = this.clone();
+    newQuery.filters.authorId = id;
+    return newQuery;
   }
 
   orderBy(field: string, direction: string) {
-    this.filters.orderBy = "${field} ${direction}";
     // this.filters.push(`orderBy=${field}${direction === "desc" ? "|desc" : ""}`);
-    return this;
+    const newQuery = this.clone();
+    newQuery.filters.orderBy = `${field} ${direction}`;
+    return newQuery;
   }
 
   asArray() {
-    this.filters.asArray = true;
-    return this;
+    const newQuery = this.clone();
+    newQuery.filters.asArray = true;
+    return newQuery;
   }
 
   select(columms: string[]) {
-    this.filters.select = columms.join(",");
-    return this;
+    const newQuery = this.clone();
+    newQuery.filters.select = columms.join(",");
+    return newQuery;
   }
 
-  with(columms: string[]) {
-    this.filters.with = columms.join(",");
-    return this;
+  with(columns: string[]) {
+    const newQuery = this.clone();
+    newQuery.filters.with = columns.join(",");
+    return newQuery;
   }
 
   paginate(page: number) {
-    this.filters.paginate = page;
-    return this;
+    const newQuery = this.clone();
+    newQuery.filters.paginate = page;
+    return newQuery;
   }
 
   async fetch() {
@@ -84,7 +106,9 @@ class CraftQuery {
       options
     );
     const data = await response.json();
-    this.filters = {};
+    if (!this.isBatchMode) {
+      this.filters = {};
+    }
     return data;
   }
 
@@ -101,6 +125,27 @@ class CraftQuery {
   }
 }
 
+class CraftBatch {
+  apiUrl: string;
+  queries: CraftQuery[] = [];
+
+  constructor(apiUrl: string) {
+    this.apiUrl = apiUrl;
+  }
+
+  addQuery(query: CraftQuery): CraftBatch {
+    this.queries.push(query);
+    return this;
+  }
+
+  async fetch(): Promise<any[]> {
+    this.queries.forEach((q) => (q.isBatchMode = true)); // Set batch mode for all queries
+    const results = await Promise.all(this.queries.map((q) => q.fetch()));
+    this.queries.forEach((q) => (q.isBatchMode = false)); // Reset batch mode for all queries
+    return results;
+  }
+}
+
 function createCraftProxy(apiUrl = "") {
   const craftQuery = new CraftQuery(apiUrl);
 
@@ -110,8 +155,9 @@ function createCraftProxy(apiUrl = "") {
         return target[prop];
       } else {
         return function (...args) {
-          target.filters[prop] = args.join(",");
-          return craftProxy;
+          const newQuery = target.clone(); // Create a new instance
+          newQuery.filters[prop] = args.join(","); // Modify the new instance
+          return newQuery; // Return the new instance
         };
       }
     },
@@ -121,7 +167,13 @@ function createCraftProxy(apiUrl = "") {
 }
 
 const Craft = (apiUrl = "") => {
-  return createCraftProxy(apiUrl);
+  const craftProxy = createCraftProxy(apiUrl);
+  craftProxy.batch = (queries: CraftQuery[]) => {
+    const batch = new CraftBatch(apiUrl);
+    queries.forEach((query) => batch.addQuery(query));
+    return batch;
+  };
+  return craftProxy;
 };
 
 export default Craft;
