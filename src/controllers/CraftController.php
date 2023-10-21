@@ -8,6 +8,7 @@ use craft\elements\db\EntryQuery;
 use craft\elements\db\ElementQuery;
 use craft\web\Controller;
 use yii\web\Response;
+use yii\web\BadRequestHttpException;
 
 // For Pagination
 use craft\db\Paginator;
@@ -27,30 +28,63 @@ class CraftController extends Controller
     public $defaultAction = 'index';
     protected array|int|bool $allowAnonymous = self::ALLOW_ANONYMOUS_LIVE;
 
-    /**
-     * craft-js/craft action
-     */
+
     public function actionIndex(): Response
     {
         $this->requireAcceptsJson();
 
         $request = Craft::$app->getRequest();
         $response = Craft::$app->getResponse();
-
         $response->format = Response::FORMAT_JSON;
 
         // Get params from request
         $params = $request->getQueryParams();
 
+        $response->data = $this->handleSingleQuery($params);
+        return $response;
+    }
+
+    public function actionBatched(): Response
+    {
+        // $this->requireAcceptsJson();
+
+        $request = Craft::$app->getRequest();
+        $response = Craft::$app->getResponse();
+        $response->format = Response::FORMAT_JSON;
+
+        // Since it's POST, we will get params from the request body
+        $queries = $request->getBodyParams();
+
+        // ray($queries);
+
+        // if (!isset($params['queries']) || !is_array($params['queries'])) {
+        //     throw new BadRequestHttpException('Missing or invalid queries parameter.');
+        // }
+
+        // $queries = $params['queries'];
+        $results = [];
+
+        foreach ($queries as $singleQueryParams) {
+            ray($singleQueryParams);
+            $results[] = $this->handleSingleQuery($singleQueryParams);
+        }
+
+        $response->data = $results;
+        return $response;
+    }
+
+    private function handleSingleQuery(array $params)
+    {
+        ray($params);
         if (isset($params['cache'])) {
             $cacheKey = 'query_' . md5(json_encode($params));
             $data = Craft::$app->getCache()->get($cacheKey);
 
             if ($data !== false) {
-                $response->data = [
+                $response = [
                     'success' => true,
-                    'message' => 'CraftController actionIndex()',
-                    'request' => $request->getQueryParams(),
+                    'message' => 'CraftController handleSingleQuery()',
+                    'request' => $params,
                     'data' => $data,
                     'cached' => true,
                 ];
@@ -87,10 +121,10 @@ class CraftController extends Controller
         }
 
         if (!isset($craftElementClass) && !isset($customClass)) {
-            $response->data = [
+            $response = [
                 'success' => false,
                 'message' => 'Missing elementType or custom class',
-                'request' => $request->getQueryParams(),
+                'request' => $params,
             ];
         }
 
@@ -131,7 +165,10 @@ class CraftController extends Controller
             $queryBuilder->with($with);
         }
 
-        $paginate = $request->getQueryParam('paginate', false);
+        $paginate = false;
+        if (isset($params['paginate'])) {
+            $paginate = $params['paginate'];
+        }
 
         if ($craftElementClass) {
 
@@ -261,7 +298,7 @@ class CraftController extends Controller
         $responseData = [
             'success' => true,
             'message' => 'CraftController actionIndex()',
-            'request' => $request->getQueryParams(),
+            'request' => $params,
             'data' => $data,
             'cached' => false,
         ];
@@ -270,8 +307,6 @@ class CraftController extends Controller
             $responseData['pagination'] = $paginationInfo;
         }
 
-        $response->data = $responseData;
-
-        return $response;
+        return $responseData;
     }
 }
