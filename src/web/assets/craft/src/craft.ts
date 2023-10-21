@@ -23,8 +23,8 @@ class CraftQuery {
 
   isBatchMode = false;
 
-  private clone(): CraftQuery {
-    const newQuery = new CraftQuery(this.apiUrl);
+  clone(): CraftQuery {
+    const newQuery = createCraftQueryProxy(this.apiUrl);
     newQuery.filters = { ...this.filters };
     return newQuery;
   }
@@ -59,7 +59,6 @@ class CraftQuery {
   }
 
   orderBy(field: string, direction: string) {
-    // this.filters.push(`orderBy=${field}${direction === "desc" ? "|desc" : ""}`);
     const newQuery = this.clone();
     newQuery.filters.orderBy = `${field} ${direction}`;
     return newQuery;
@@ -99,8 +98,15 @@ class CraftQuery {
       // mode: "cors",
       // cache: "default",
     };
-    // const queryString = this.filters.join("&");
-    const queryString = new URLSearchParams(this.filters).toString();
+
+    // URLSearchParams constructor will throw an error if any values are not strings
+    // Loop over this.filters and ensure that all values are strings
+    const filters = {};
+    for (const [key, value] of Object.entries(this.filters)) {
+      filters[key] = value.toString();
+    }
+
+    const queryString = new URLSearchParams(filters).toString();
     const response = await fetch(
       `${this.apiUrl}${this.endpoint}?${queryString}`,
       options
@@ -128,6 +134,7 @@ class CraftQuery {
 class CraftBatch {
   apiUrl: string;
   queries: CraftQuery[] = [];
+  endpoint: string = `/actions/craft-js/craft/batched`;
 
   constructor(apiUrl: string) {
     this.apiUrl = apiUrl;
@@ -139,19 +146,38 @@ class CraftBatch {
   }
 
   async fetch(): Promise<any[]> {
-    this.queries.forEach((q) => (q.isBatchMode = true)); // Set batch mode for all queries
-    const results = await Promise.all(this.queries.map((q) => q.fetch()));
-    this.queries.forEach((q) => (q.isBatchMode = false)); // Reset batch mode for all queries
-    return results;
+    const headers = new Headers();
+    headers.append("Accept", "application/json");
+    headers.append("Content-Type", "application/json");
+
+    // Aggregate filters from each query into an array
+    const batchedFilters = this.queries.map((query) => query.getFilters());
+
+    const options = {
+      method: "POST", // We'll POST the batch of queries
+      headers: headers,
+      body: JSON.stringify(batchedFilters), // Send all filters in one go
+    };
+
+    const response = await fetch(`${this.apiUrl}${this.endpoint}`, options);
+
+    if (!response.ok) {
+      throw new Error(`Network response was not ok: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    // Assuming the server will respond with an array of results matching the order of queries
+    return data;
   }
 }
 
-function createCraftProxy(apiUrl = "") {
+function createCraftQueryProxy(apiUrl: string): CraftQuery {
   const craftQuery = new CraftQuery(apiUrl);
 
-  const craftProxy = new Proxy(craftQuery, {
+  return new Proxy(craftQuery, {
     get(target, prop) {
-      if (prop in target) {
+      if (typeof prop === "string" && prop in target) {
         return target[prop];
       } else {
         return function (...args) {
@@ -162,8 +188,10 @@ function createCraftProxy(apiUrl = "") {
       }
     },
   });
+}
 
-  return craftProxy;
+function createCraftProxy(apiUrl = ""): CraftQuery {
+  return createCraftQueryProxy(apiUrl);
 }
 
 const Craft = (apiUrl = "") => {
