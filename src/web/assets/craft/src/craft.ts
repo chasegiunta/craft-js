@@ -182,7 +182,13 @@ function createCraftQueryProxy(apiUrl: string): CraftQuery {
       } else {
         return function (...args) {
           const newQuery = target.clone(); // Create a new instance
-          newQuery.filters[prop] = args.join(","); // Modify the new instance
+          if (args[0] !== null) {
+            // Check if argument is not null
+            newQuery.filters[prop] = args.join(","); // Modify the new instance
+          } else {
+            // If argument is null, delete the corresponding property
+            delete newQuery.filters[prop];
+          }
           return newQuery; // Return the new instance
         };
       }
