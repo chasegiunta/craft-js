@@ -5,12 +5,12 @@ export default defineConfig({
   build: {
     lib: {
       // Could also be a dictionary or array of multiple entry points
-      entry: resolve(__dirname, "src/web/assets/craft/src/craft.ts"),
+      entry: resolve(__dirname, "src/web/craft.ts"),
       name: "CraftJS",
       // the proper extensions will be added
       fileName: "craft",
     },
-    outDir: resolve(__dirname, "src/web/assets/craft/dist/"),
+    outDir: resolve(__dirname, "dist/"),
     // rollupOptions: {
     //   // make sure to externalize deps that shouldn't be bundled
     //   // into your library
