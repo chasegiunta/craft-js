@@ -13,37 +13,56 @@
 > Not suitable for production. Probably poses some security risks.
 
 #### Vue app usage demo
+
 https://github.com/chasegiunta/craft-js/assets/1377169/e2e8d096-94d0-45e2-8a80-6c6a26263440
 
 #### Basic Usage
+
 ```js
-import Craft from "{vendorPath}/chasegiunta/craft-js/src/web/assets/craft/dist/craft";
+import Craft from "{vendorPath}/chasegiunta/craft-js/dist/craft";
 
 const craft = Craft("https://your-craft-website.test");
 
 // Currently, only Entry element types are supported
 const fetchPosts = async () => {
-  const posts = craft.entries().section("blog").orderBy('title ASC').limit(10).all();
+  const posts = craft
+    .entries()
+    .section("blog")
+    .orderBy("title ASC")
+    .limit(10)
+    .all();
   await craft.then((response: any) => {
     console.log(response.data);
-  })
-}
+  });
+};
 ```
+
 ##### Element Pagination
+
 ```js
-const posts =
-  craft
+const posts = craft
   .entries()
   .section("blog")
   .label("myCustomFieldLabel") // supports custom fields
   .paginate(pageNum) // paginate() will override any execution methods (.all(), .one(), etc.)
   .limit(10)
-  .fetch() // method used to fetch response (this will be changed in the future).
+  .fetch(); // method used to fetch response (this will be changed in the future).
 ```
+
 ##### Batch Queries
+
 ```js
-const query1 = craft.entries().section("teams").division('d1').limit(10).prune(["title"]);
-const query2 = craft.entries().section("news").limit(20).prune(["title", "url"]);
+const query1 = craft
+  .entries()
+  .section("teams")
+  .division("d1")
+  .limit(10)
+  .prune(["title"]);
+const query2 = craft
+  .entries()
+  .section("news")
+  .limit(20)
+  .prune(["title", "url"]);
 
 await craft
   .batch([query1, query2])
@@ -53,11 +72,12 @@ await craft
     const news = responses[1];
     // ... handle data ...
 
-    console.log(teams.data, news.data)
+    console.log(teams.data, news.data);
   });
 ```
 
-------------
+---
+
 ## Future Idea & Todos:
 
 <details>
@@ -118,7 +138,6 @@ await craft
   - [ ] Backend
 - [ ] Audit for securtiy
 - [ ] Audit for code necessity
-
 
 ## Requirements
 
