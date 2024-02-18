@@ -19,7 +19,7 @@ https://github.com/chasegiunta/craft-js/assets/1377169/e2e8d096-94d0-45e2-8a80-6
 ```js
 import Craft from "{vendorPath}/chasegiunta/craft-js/src/web/assets/craft/dist/craft";
 
-const craft = Craft("https://next.test");
+const craft = Craft("https://your-craft-website.test");
 
 // Currently, only Entry element types are supported
 const fetchPosts = async () => {
