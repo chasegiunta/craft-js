@@ -23,7 +23,7 @@ import Craft from "{vendorPath}/chasegiunta/craft-js/dist/craft";
 
 const craft = Craft("https://your-craft-website.test");
 
-// Currently, only Entry element types are supported
+// Currently, only read queries are supported
 const fetchPosts = async () => {
   const posts = craft
     .entries()
