@@ -15,6 +15,8 @@ use craft\elements\GlobalSet;
 use craft\elements\MatrixBlock;
 use craft\elements\Address;
 
+use craft\fields\Matrix;
+
 // use craft\commerce\elements\Variant;
 // use craft\commerce\elements\Product;
 // use craft\commerce\elements\Order;
@@ -37,7 +39,14 @@ use craft\web\twig\variables\Paginate;
 // For Caching
 use yii\caching\TagDependency;
 
+use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
+use craft\fields\BaseRelationField;
+
 use craft\web\twig\variables\CraftVariable;
+
+use Illuminate\Support\Collection;
+
+use chasegiunta\craftjs\helpers\PruneHelper;
 
 class QueryHandler extends Component
 {
@@ -116,7 +125,8 @@ class QueryHandler extends Component
 
     // Prune $data to only return the columns we selected
     if (isset($params['prune'])) {
-      $data = $this->pruneData($data);
+      $pruneHelper = new PruneHelper;
+      $data = $pruneHelper->pruneData($data, $params['prune']);
     } else {
       if (is_array($data) && count($data) > 0) {
         // If $data is an array of objects, convert each object to an array
@@ -327,95 +337,95 @@ class QueryHandler extends Component
     }
   }
 
-  private function pruneData($data)
-  {
-    $prune = json_decode($this->params['prune']);
+  // private function pruneData($data)
+  // {
+  //   $prune = json_decode($this->params['prune']);
 
-    // Loop through prune array and note items that contain parentheses
-    // These items will need to be handled differently
-    $parenthesesItems = [];
-    foreach ($prune as $key => $value) {
-      if (strpos($value, '(') !== false) {
-        $parenthesesItems[] = $value;
-      }
-    }
-    // Remove parentheses items from prune array
-    $prune = array_diff($prune, $parenthesesItems);
+  //   // Loop through prune array and note items that contain parentheses
+  //   // These items will need to be handled differently
+  //   $parenthesesItems = [];
+  //   foreach ($prune as $key => $value) {
+  //     if (strpos($value, '(') !== false) {
+  //       $parenthesesItems[] = $value;
+  //     }
+  //   }
+  //   // Remove parentheses items from prune array
+  //   $prune = array_diff($prune, $parenthesesItems);
 
-    $nestedProperties = [];
+  //   $nestedProperties = [];
 
-    // Given that each item in $parentheses is a string that has an $element property followed by a method call
-    // We need to loop through each item and get the nested property on the $element property
-    foreach ($parenthesesItems as $item) {
-      $item = explode('(', $item);
-      $elementProperty = trim($item[0]);
-      $methods = trim($item[1], ')');
-      $methods = explode('.', $methods);
-      $methods = explode(',', $methods[0]);
+  //   // Given that each item in $parentheses is a string that has an $element property followed by a method call
+  //   // We need to loop through each item and get the nested property on the $element property
+  //   foreach ($parenthesesItems as $item) {
+  //     $item = explode('(', $item);
+  //     $elementProperty = trim($item[0]);
+  //     $methods = trim($item[1], ')');
+  //     $methods = explode('.', $methods);
+  //     $methods = explode(',', $methods[0]);
 
-      //remove whitespace in $methods
-      $methods = array_map('trim', $methods);
+  //     //remove whitespace in $methods
+  //     $methods = array_map('trim', $methods);
 
-      foreach ($data as $key => $el) {
+  //     foreach ($data as $key => $el) {
 
-        // TODO: Determine if we're accessing SuperTable, Matrix, or some other element
-        // Assume we're accessing SuperTable
-        $elements = $el[$elementProperty]->all();
+  //       // TODO: Determine if we're accessing SuperTable, Matrix, or some other element
+  //       // Assume we're accessing SuperTable
+  //       $elements = $el[$elementProperty]->all();
 
-        foreach ($elements as $element) {
-          if (!is_object($element)) {
-            continue;
-          }
-          $craftNamespace = 'craft\\elements\\'; // Specify the namespace you want to check
+  //       foreach ($elements as $element) {
+  //         if (!is_object($element)) {
+  //           continue;
+  //         }
+  //         $craftNamespace = 'craft\\elements\\'; // Specify the namespace you want to check
 
-          $className = get_class($element);
-          if (strpos($className, $craftNamespace) === 0) {
-            // This is a Craft element
-            foreach ($methods as $method) {
-              $value = $element->$method;
-              // add to $nestedProperties
-              $nestedProperties[$key][$elementProperty][$method] = $value;
-            }
-          } else if ($element instanceof \verbb\supertable\elements\SuperTableBlockElement) {
-            // If $element is an instance of SuperTableBlockElement
-            // Loop through each field in the SuperTable field layout
-            $values = [];
-            foreach ($element->getFieldLayout()->getCustomFields() as $field) {
-              // if $field->handle is in $methods, get the value
-              if (in_array($field->handle, $methods)) {
-                $value = $element->getFieldValue($field->handle);
-                // add to $nestedProperties
-                $nestedProperties[$key][$elementProperty][$field->handle] = $value;
+  //         $className = get_class($element);
+  //         if (strpos($className, $craftNamespace) === 0) {
+  //           // This is a Craft element
+  //           foreach ($methods as $method) {
+  //             $value = $element->$method;
+  //             // add to $nestedProperties
+  //             $nestedProperties[$key][$elementProperty][$method] = $value;
+  //           }
+  //         } else if ($element instanceof \verbb\supertable\elements\SuperTableBlockElement) {
+  //           // If $element is an instance of SuperTableBlockElement
+  //           // Loop through each field in the SuperTable field layout
+  //           $values = [];
+  //           foreach ($element->getFieldLayout()->getCustomFields() as $field) {
+  //             // if $field->handle is in $methods, get the value
+  //             if (in_array($field->handle, $methods)) {
+  //               $value = $element->getFieldValue($field->handle);
+  //               // add to $nestedProperties
+  //               $nestedProperties[$key][$elementProperty][$field->handle] = $value;
 
-                // $data[$key][$entryProperty][$field->handle] = $value;
-              }
+  //               // $data[$key][$entryProperty][$field->handle] = $value;
+  //             }
 
-              //     // $data[$key][$entryProperty][$method] = $value;
-            }
-          }
-        }
-      }
-    }
+  //             //     // $data[$key][$entryProperty][$method] = $value;
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
 
-    if (is_array($data) && count($data) > 0) {
-      // .all() returns an array of objects
-      // Loop through data and prune each entry
-      foreach ($data as $key => $entry) {
-        $entry = $entry->toArray();
-        $data[$key] = array_intersect_key($entry, array_flip($prune));
-      }
-    } else {
-      // .one() returns a single object
-      $data = array_intersect_key($data->toArray(), array_flip($prune));
-    }
+  //   if (is_array($data) && count($data) > 0) {
+  //     // .all() returns an array of objects
+  //     // Loop through data and prune each entry
+  //     foreach ($data as $key => $entry) {
+  //       $entry = $entry->toArray();
+  //       $data[$key] = array_intersect_key($entry, array_flip($prune));
+  //     }
+  //   } else {
+  //     // .one() returns a single object
+  //     $data = array_intersect_key($data->toArray(), array_flip($prune));
+  //   }
 
-    // Merge $nestedProperties to $data
-    foreach ($nestedProperties as $key => $value) {
-      $data[$key] = array_merge($data[$key], $value);
-    }
+  //   // Merge $nestedProperties to $data
+  //   foreach ($nestedProperties as $key => $value) {
+  //     $data[$key] = array_merge($data[$key], $value);
+  //   }
 
-    return $data;
-  }
+  //   return $data;
+  // }
 
   function executeQuery($query, $method)
   {
