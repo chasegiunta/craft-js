@@ -12,6 +12,10 @@ use Throwable;
 
 class PruneHelper
 {
+
+  private $relatedElementDepthCount = 0;
+  private $relatedElementDepthLimit = 1;
+
   public function pruneData($data, $pruneDefinition)
   {
     if (!is_array($data) || !count($data) > 0) {
@@ -26,6 +30,18 @@ class PruneHelper
 
     foreach ($data as $elementIndex => $element) {
       foreach ($pruneDefinition as $fieldDefinition) {
+        /**
+         * Parses the field definition to check for a relationship depth limit in parentheses. 
+         * If found, sets the relatedElementDepthLimit property to that limit.
+         * Also removes the limit from the field definition string.
+         */
+        if (strpos($fieldDefinition, '(') !== false) {
+          list($fieldDefinition, $limit) = explode('(', $fieldDefinition);
+          $limit = str_replace(')', '', $limit);
+          $this->relatedElementDepthLimit = (int) $limit;
+          $fieldDefinition = trim($fieldDefinition);
+        }
+
         if ($element->hasProperty($fieldDefinition)) {
           $field = $element->$fieldDefinition;
           $fieldValueType = gettype($field);
@@ -60,18 +76,9 @@ class PruneHelper
           }
 
           if ($field instanceof \craft\elements\db\ElementQuery) {
-            // $prunedData[$elementIndex][$fieldDefinition] = $field->all();
             $prunedData[$elementIndex][$fieldDefinition] = $this->getRelatedElementData($field);
             continue;
           }
-
-          // if ($field instanceof MatrixBlockQuery) {
-          //   $matrixBlocks = $field->all();
-          //   foreach ($matrixBlocks as $i => $block) {
-          //     $type = $block->getType();
-          //     $prunedData[$elementIndex][$fieldDefinition][$type->handle] = $block->getFieldValues();
-          //   }
-          // }
         }
       }
     }
@@ -163,30 +170,28 @@ class PruneHelper
 
   }
 
-  private $relatedElementRecursiveCount = 0;
-
   private function getRelatedElementData($field, $isNested = false)
   {
-    if ($this->relatedElementRecursiveCount > 1) {
-      return $field;
+    if ($this->relatedElementDepthCount >= $this->relatedElementDepthLimit) {
+      return null;
     }
     $relatedElements = $field->all();
     $relatedElementFieldValues = [];
     foreach ($relatedElements as $i => $relatedElement) {
-      if ($relatedElement instanceof \craft\elements\User) {
-        $relatedNativeFieldValues = $relatedElement->attributes;
-        ray(array_merge($relatedNativeFieldValues, $relatedElement->getFieldValues()));
-      }
-      $relatedElementFieldValues = $relatedElement->getFieldValues();
+
+      $relatedElementNativeFieldValues = $relatedElement->getAttributes();
+      $relatedElementCustomFieldValues = $relatedElement->getFieldValues();
+      $relatedElementFieldValues = array_merge($relatedElementNativeFieldValues, $relatedElementCustomFieldValues);
+
       foreach ($relatedElementFieldValues as $key => $value) {
         if ($value instanceof \craft\elements\db\ElementQuery) {
-          if ($isNested) {
-            $this->relatedElementRecursiveCount++;
-          }
+          // if ($isNested) {
+          $this->relatedElementDepthCount++;
+          // }
           $relatedElementFieldValues[$key] = $this->getRelatedElementData($value, true);
-          if ($isNested) {
-            $this->relatedElementRecursiveCount--;
-          }
+          // if ($isNested) {
+          $this->relatedElementDepthCount--;
+          // }
         }
       }
     }
