@@ -49,17 +49,25 @@ class PruneHelper
         $nestedPropertyKey = null;
 
         if (strpos($fieldDefinition, '(') !== false) {
-          list($fieldDefinition, $nestedPropertyKey) = explode('(', $fieldDefinition);
-          $nestedPropertyKey = str_replace(')', '', $nestedPropertyKey);
+          list($fieldDefinition, $nestedPropertyKeys) = explode('(', $fieldDefinition);
+          $nestedPropertyKeys = str_replace(')', '', $nestedPropertyKeys);
           $fieldDefinition = trim($fieldDefinition);
 
-          if ($element->hasProperty($fieldDefinition)) {
-            $field = $element->$fieldDefinition;
+          // split nestedpropertykeys by comma
+          $nestedPropertyKeys = explode(',', $nestedPropertyKeys);
+          $nestedPropertyKeys = array_map('trim', $nestedPropertyKeys);
 
-            $prunedData[$elementIndex][$fieldDefinition] = [];
-            $prunedData[$elementIndex][$fieldDefinition] = $this->pruneData($field, "\"$nestedPropertyKey\"", true);
-            continue;
+          // loop nestedpropertykeys
+          foreach ($nestedPropertyKeys as $nestedPropertyKey) {
+            if ($element->hasProperty($fieldDefinition)) {
+              $field = $element->$fieldDefinition;
+
+              // $prunedData[$elementIndex][$fieldDefinition] = [];
+              $prunedData[$elementIndex][$fieldDefinition][$nestedPropertyKey] = $this->pruneData($field, "\"$nestedPropertyKey\"", true);
+              continue;
+            }
           }
+          continue;
         }
 
 
@@ -76,7 +84,7 @@ class PruneHelper
           }
           if (in_array($fieldValueType, ['string', 'integer', 'boolean', 'double'])) {
             $nested ?
-              $prunedData[$fieldDefinition] = $field :
+              $prunedData = $field :
               $prunedData[$elementIndex][$fieldDefinition] = $field;
             continue;
           }
