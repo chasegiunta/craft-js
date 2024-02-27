@@ -16,7 +16,7 @@ class PruneHelper
   private $relatedElementDepthCount = 0;
   private $relatedElementDepthLimit = 1;
 
-  public function pruneData($data, $pruneDefinition)
+  public function pruneData($data, $pruneDefinition, $nested = false)
   {
     if (!is_array($data) || !count($data) > 0) {
       $data = [$data];
@@ -25,37 +25,65 @@ class PruneHelper
     $expressionLanguage = new ExpressionLanguage();
     $pruneDefinition = json_decode($pruneDefinition, true);
 
+    if (!is_array($pruneDefinition) || !count($pruneDefinition) > 0) {
+      $pruneDefinition = [$pruneDefinition];
+    }
+
     $prunedData = [];
     $craftNamespace = 'craft\\elements\\';
 
     foreach ($data as $elementIndex => $element) {
       foreach ($pruneDefinition as $fieldDefinition) {
-        /**
-         * Parses the field definition to check for a relationship depth limit in parentheses. 
-         * If found, sets the relatedElementDepthLimit property to that limit.
-         * Also removes the limit from the field definition string.
-         */
+        // /**
+        //  * Parses the field definition to check for a relationship depth limit in parentheses. 
+        //  * If found, sets the relatedElementDepthLimit property to that limit.
+        //  * Also removes the limit from the field definition string.
+        //  */
+        // if (strpos($fieldDefinition, '(') !== false) {
+        //   list($fieldDefinition, $limit) = explode('(', $fieldDefinition);
+        //   $limit = str_replace(')', '', $limit);
+        //   $this->relatedElementDepthLimit = (int) $limit;
+        //   $fieldDefinition = trim($fieldDefinition);
+        // }
+
+        $nestedPropertyKey = null;
+
         if (strpos($fieldDefinition, '(') !== false) {
-          list($fieldDefinition, $limit) = explode('(', $fieldDefinition);
-          $limit = str_replace(')', '', $limit);
-          $this->relatedElementDepthLimit = (int) $limit;
+          list($fieldDefinition, $nestedPropertyKey) = explode('(', $fieldDefinition);
+          $nestedPropertyKey = str_replace(')', '', $nestedPropertyKey);
           $fieldDefinition = trim($fieldDefinition);
+
+          if ($element->hasProperty($fieldDefinition)) {
+            $field = $element->$fieldDefinition;
+
+            $prunedData[$elementIndex][$fieldDefinition] = [];
+            $prunedData[$elementIndex][$fieldDefinition] = $this->pruneData($field, "\"$nestedPropertyKey\"", true);
+            continue;
+          }
         }
+
+
 
         if ($element->hasProperty($fieldDefinition)) {
           $field = $element->$fieldDefinition;
           $fieldValueType = gettype($field);
 
           if ($fieldValueType == NULL) {
-            $prunedData[$elementIndex][$fieldDefinition] = null;
+            $nested ?
+              $prunedData[$fieldDefinition] = null :
+              $prunedData[$elementIndex][$fieldDefinition] = null;
             continue;
           }
           if (in_array($fieldValueType, ['string', 'integer', 'boolean', 'double'])) {
-            $prunedData[$elementIndex][$fieldDefinition] = $field;
+            $nested ?
+              $prunedData[$fieldDefinition] = $field :
+              $prunedData[$elementIndex][$fieldDefinition] = $field;
             continue;
           }
           if (is_array($field)) {
-            $prunedData[$elementIndex][$fieldDefinition] = $field;
+            $nested ?
+              $prunedData[$fieldDefinition] = $field :
+              $prunedData[$elementIndex][$fieldDefinition] = $field;
             continue;
           }
 
@@ -79,6 +107,8 @@ class PruneHelper
             $prunedData[$elementIndex][$fieldDefinition] = $this->getRelatedElementData($field);
             continue;
           }
+
+          $nested ? $prunedData[$fieldDefinition] = $field : $prunedData[$elementIndex][$fieldDefinition] = $field;
         }
       }
     }
