@@ -79,7 +79,6 @@ class PruneHelper
             if (($isElement && $object->canGetProperty($fieldDefinition)) || $object && property_exists($object, $fieldDefinition)) {
               $field = $object->$fieldDefinition;
 
-              // $prunedData[$elementIndex][$fieldDefinition] = [];
               $prunedData[$index][$fieldDefinition][$nestedPropertyKey] = $this->pruneData($field, "\"$nestedPropertyKey\"", true);
               continue;
             }
