@@ -3,6 +3,8 @@
 namespace chasegiunta\craftjs\helpers;
 
 use Craft;
+use craft\base\Element;
+use \craft\elements\db\ElementQuery;
 use craft\fields\BaseRelationField;
 use craft\helpers\StringHelper;
 use craft\elements\db\MatrixBlockQuery;
@@ -32,7 +34,13 @@ class PruneHelper
     $prunedData = [];
     $craftNamespace = 'craft\\elements\\';
 
-    foreach ($data as $elementIndex => $element) {
+    foreach ($data as $index => $object) {
+
+      $isElement = false;
+      if ($object instanceof Element || $object instanceof ElementQuery) {
+        $isElement = true;
+      }
+
       foreach ($pruneDefinition as $fieldDefinition) {
         // /**
         //  * Parses the field definition to check for a relationship depth limit in parentheses. 
@@ -49,49 +57,64 @@ class PruneHelper
         $nestedPropertyKey = null;
 
         if (strpos($fieldDefinition, '(') !== false) {
-          list($fieldDefinition, $nestedPropertyKeys) = explode('(', $fieldDefinition);
-          $nestedPropertyKeys = str_replace(')', '', $nestedPropertyKeys);
+
+          // Get "(nested property string)"
+          preg_match('/\(([^()]|(?R))*\)/', $fieldDefinition, $matches);
+          $nestedPropertyString = $matches[0] ?? null;
+
+          // Remove "(nested property string)" from $fieldDefinition
+          $fieldDefinition = str_replace($nestedPropertyString, '', $fieldDefinition);
           $fieldDefinition = trim($fieldDefinition);
 
-          // split nestedpropertykeys by comma
-          $nestedPropertyKeys = explode(',', $nestedPropertyKeys);
+          // Remove parentheses from "(nested property string)"
+          if ($nestedPropertyString[0] == '(' && $nestedPropertyString[strlen($nestedPropertyString) - 1] == ')') {
+            $nestedPropertyString = substr($nestedPropertyString, 1, -1);
+          }
+
+          // Get [nested, property, keys] from "nested property string"
+          $nestedPropertyKeys = explode(',', $nestedPropertyString);
           $nestedPropertyKeys = array_map('trim', $nestedPropertyKeys);
 
-          // loop nestedpropertykeys
+          // Loop through [nested, property, keys]
           foreach ($nestedPropertyKeys as $nestedPropertyKey) {
-            if ($element->hasProperty($fieldDefinition)) {
-              $field = $element->$fieldDefinition;
+            if (($isElement && $object->hasProperty($fieldDefinition)) || $object && property_exists($object, $fieldDefinition)) {
+              $field = $object->$fieldDefinition;
 
               // $prunedData[$elementIndex][$fieldDefinition] = [];
-              $prunedData[$elementIndex][$fieldDefinition][$nestedPropertyKey] = $this->pruneData($field, "\"$nestedPropertyKey\"", true);
+              $prunedData[$index][$fieldDefinition][$nestedPropertyKey] = $this->pruneData($field, "\"$nestedPropertyKey\"", true);
               continue;
             }
           }
           continue;
         }
 
+        // if $object is not an object return error
+        if (!is_object($object)) {
+          return [
+            'error' => 'Element is not an object'
+          ];
+        }
 
-
-        if ($element->hasProperty($fieldDefinition)) {
-          $field = $element->$fieldDefinition;
+        if (($isElement && $object->hasProperty($fieldDefinition)) || $object && property_exists($object, $fieldDefinition)) {
+          $field = $object->$fieldDefinition;
           $fieldValueType = gettype($field);
 
           if ($fieldValueType == NULL) {
             $nested ?
               $prunedData[$fieldDefinition] = null :
-              $prunedData[$elementIndex][$fieldDefinition] = null;
+              $prunedData[$index][$fieldDefinition] = null;
             continue;
           }
           if (in_array($fieldValueType, ['string', 'integer', 'boolean', 'double'])) {
             $nested ?
               $prunedData = $field :
-              $prunedData[$elementIndex][$fieldDefinition] = $field;
+              $prunedData[$index][$fieldDefinition] = $field;
             continue;
           }
           if (is_array($field)) {
             $nested ?
               $prunedData[$fieldDefinition] = $field :
-              $prunedData[$elementIndex][$fieldDefinition] = $field;
+              $prunedData[$index][$fieldDefinition] = $field;
             continue;
           }
 
@@ -101,22 +124,22 @@ class PruneHelper
               $blockType = $block->getType();
               $blockFieldValues = $block->getFieldValues();
               foreach ($blockFieldValues as $key => $blockFieldValue) {
-                if ($blockFieldValue instanceof \craft\elements\db\ElementQuery) {
-                  $prunedData[$elementIndex][$fieldDefinition][$blockType->handle][$key] = $this->getRelatedElementData($blockFieldValue);
+                if ($blockFieldValue instanceof ElementQuery) {
+                  $prunedData[$index][$fieldDefinition][$blockType->handle][$key] = $this->getRelatedElementData($blockFieldValue);
                 } else {
-                  $prunedData[$elementIndex][$fieldDefinition][$blockType->handle][$key] = $blockFieldValue;
+                  $prunedData[$index][$fieldDefinition][$blockType->handle][$key] = $blockFieldValue;
                 }
               }
             }
             continue;
           }
 
-          if ($field instanceof \craft\elements\db\ElementQuery) {
-            $prunedData[$elementIndex][$fieldDefinition] = $this->getRelatedElementData($field);
+          if ($field instanceof ElementQuery) {
+            $prunedData[$index][$fieldDefinition] = $this->getRelatedElementData($field);
             continue;
           }
 
-          $nested ? $prunedData[$fieldDefinition] = $field : $prunedData[$elementIndex][$fieldDefinition] = $field;
+          $nested ? $prunedData[$fieldDefinition] = $field : $prunedData[$index][$fieldDefinition] = $field;
         }
       }
     }
@@ -222,7 +245,7 @@ class PruneHelper
       $relatedElementFieldValues = array_merge($relatedElementNativeFieldValues, $relatedElementCustomFieldValues);
 
       foreach ($relatedElementFieldValues as $key => $value) {
-        if ($value instanceof \craft\elements\db\ElementQuery) {
+        if ($value instanceof ElementQuery) {
           // if ($isNested) {
           $this->relatedElementDepthCount++;
           // }
