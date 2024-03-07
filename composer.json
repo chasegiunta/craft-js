@@ -16,7 +16,7 @@
   },
   "require-dev": {
     "craftcms/ecs": "dev-main",
-    "craftcms/generator": "^1.6",
+    "craftcms/generator": "^2.0",
     "craftcms/phpstan": "dev-main",
     "spatie/enum": "^3.13",
     "spatie/ray": "^1.40",
