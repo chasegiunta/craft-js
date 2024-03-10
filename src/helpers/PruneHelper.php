@@ -36,8 +36,11 @@ class PruneHelper
     foreach ($data as $index => $object) {
 
       $isElement = false;
-      if ($object instanceof Element || $object instanceof ElementQuery) {
+      $isElementQuery = false;
+      if ($object instanceof Element) {
         $isElement = true;
+      } elseif ($object instanceof ElementQuery) {
+        $isElementQuery = true;
       }
 
       foreach ($pruneDefinition as $fieldDefinition) {
@@ -54,9 +57,9 @@ class PruneHelper
         // }
 
         $nestedPropertyKey = null;
+        $fieldValue = null;
 
         if (strpos($fieldDefinition, '(') !== false) {
-
           // Get "(nested property string)"
           preg_match('/\(([^()]|(?R))*\)/', $fieldDefinition, $matches);
           $nestedPropertyString = $matches[0] ?? null;
@@ -73,18 +76,31 @@ class PruneHelper
           // Get [nested, property, keys] from "nested property string"
           $nestedPropertyKeys = explode(',', $nestedPropertyString);
           $nestedPropertyKeys = array_map('trim', $nestedPropertyKeys);
-
-          // Loop through [nested, property, keys]
-          foreach ($nestedPropertyKeys as $nestedPropertyKey) {
-            if (($isElement && $object->canGetProperty($fieldDefinition)) || $object && property_exists($object, $fieldDefinition)) {
-              $field = $object->$fieldDefinition;
-
-              $prunedData[$index][$fieldDefinition][$nestedPropertyKey] = $this->pruneData($field, "\"$nestedPropertyKey\"", true);
-              continue;
-            }
-          }
-          continue;
         }
+
+        if (($isElement) && $object->canGetProperty($fieldDefinition)) {
+          $fieldValue = $object->$fieldDefinition;
+        } else if ($isElementQuery) {
+          if ($object->$fieldDefinition) {
+            $fieldValue = $object->$fieldDefinition;
+          } else {
+            $fieldValue = $object->$fieldDefinition->all();
+          }
+          // $fieldValue = $object->$fieldDefinition->all();
+          // else if ($isElementQuery && $object->type($fieldDefinition)) {
+          //   $fieldValue = $object->type($fieldDefinition);
+        } else if (property_exists($object, $fieldDefinition)) {
+          $fieldValue = $object->$fieldDefinition;
+        }
+        $fieldValueType = gettype($fieldValue);
+
+        // if (isset($nestedPropertyKeys)) {
+        //   // Loop through [nested, property, keys]
+        //   foreach ($nestedPropertyKeys as $nestedPropertyKey) {
+        //     $prunedData[$index][$fieldDefinition][$nestedPropertyKey] = $this->pruneData($fieldValue, "\"$nestedPropertyKey\"", true);
+        //     continue;
+        //   }
+        // }
 
         // if $object is not an object return error
         if (!is_object($object)) {
@@ -93,10 +109,7 @@ class PruneHelper
           ];
         }
 
-        if (($isElement && $object->canGetProperty($fieldDefinition)) || $object && property_exists($object, $fieldDefinition)) {
-          $field = $object->$fieldDefinition;
-          $fieldValueType = gettype($field);
-
+        if ($fieldValue) {
           if ($fieldValueType == NULL) {
             $nested ?
               $prunedData[$fieldDefinition] = null :
@@ -105,19 +118,34 @@ class PruneHelper
           }
           if (in_array($fieldValueType, ['string', 'integer', 'boolean', 'double'])) {
             $nested ?
-              $prunedData = $field :
-              $prunedData[$index][$fieldDefinition] = $field;
+              $prunedData = $fieldValue :
+              $prunedData[$index][$fieldDefinition] = $fieldValue;
             continue;
           }
-          if (is_array($field)) {
+          if (is_array($fieldValue)) {
             $nested ?
-              $prunedData[$fieldDefinition] = $field :
-              $prunedData[$index][$fieldDefinition] = $field;
+              $prunedData[$fieldDefinition] = $fieldValue :
+              $prunedData[$index][$fieldDefinition] = $fieldValue;
             continue;
           }
 
-          if ($field instanceof MatrixBlockQuery) {
-            $matrixBlocks = $field->all();
+          if ($fieldValue instanceof ElementQuery) {
+
+            if (isset($nestedPropertyKeys)) {
+              // Loop through [nested, property, keys]
+              foreach ($nestedPropertyKeys as $nestedPropertyKey) {
+                $prunedData[$index][$fieldDefinition][$nestedPropertyKey] = $this->pruneData($fieldValue, "\"$nestedPropertyKey\"", true);
+                continue;
+              }
+              continue;
+            }
+
+            $prunedData[$index][$fieldDefinition] = $this->getRelatedElementData($fieldValue);
+            continue;
+          }
+
+          if ($fieldValue instanceof MatrixBlockQuery) {
+            $matrixBlocks = $fieldValue->all();
             foreach ($matrixBlocks as $i => $block) {
               $blockType = $block->getType();
               $blockFieldValues = $block->getFieldValues();
@@ -132,12 +160,7 @@ class PruneHelper
             continue;
           }
 
-          if ($field instanceof ElementQuery) {
-            $prunedData[$index][$fieldDefinition] = $this->getRelatedElementData($field);
-            continue;
-          }
-
-          $nested ? $prunedData[$fieldDefinition] = $field : $prunedData[$index][$fieldDefinition] = $field;
+          $nested ? $prunedData[$fieldDefinition] = $fieldValue : $prunedData[$index][$fieldDefinition] = $fieldValue;
         }
       }
     }
