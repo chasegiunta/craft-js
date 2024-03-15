@@ -84,7 +84,7 @@ class PruneHelper
           if ($object->$fieldDefinition) {
             $fieldValue = $object->$fieldDefinition;
           } else {
-            $fieldValue = $object->$fieldDefinition->all();
+            $fieldValue = $object->all();
           }
           // $fieldValue = $object->$fieldDefinition->all();
           // else if ($isElementQuery && $object->type($fieldDefinition)) {
