@@ -138,17 +138,9 @@ class PruneHelper
 
     $fieldValue = null;
 
-    $isElement = false;
-    $isElementQuery = false;
-    if ($object[$definitionHandle] instanceof Element) {
-      $isElement = true;
-    } elseif ($object[$definitionHandle] instanceof ElementQuery) {
-      $isElementQuery = true;
-    }
-
-    if (($isElement) && $object->canGetProperty($definitionHandle)) {
+    if (($object[$definitionHandle] instanceof Element) && $object->canGetProperty($definitionHandle)) {
       $fieldValue = $object->$definitionHandle;
-    } else if ($isElementQuery) {
+    } else if ($object[$definitionHandle] instanceof ElementQuery) {
 
       $methodCall = $object->$definitionHandle;
       // $specials array has any items, loop over
@@ -160,6 +152,7 @@ class PruneHelper
     } else if (isset($object, $definitionHandle)) {
       $fieldValue = $object->$definitionHandle;
     }
+
     $fieldValueType = gettype($fieldValue);
 
     if ($fieldValue) {
@@ -216,28 +209,22 @@ class PruneHelper
 
   private function applySpecials($methodCall, $specials) {
     foreach ($specials as $specialHandle => $specialValue) {
-          switch ($specialHandle) {
-              case 'limit':
-                  $methodCall = $methodCall->limit($specialValue);
-                  break;
-              case 'offset':
-                  $methodCall = $methodCall->offset($specialValue);
-                  break;
-              case 'order':
-                  $methodCall = $methodCall->order($specialValue);
-                  break;
-              case 'where':
-                  $methodCall = $methodCall->where($specialValue);
-                  break;
-              case 'whereIn':
-                  $methodCall = $methodCall->whereIn($specialValue);
-                  break;
-              case 'type':
-                  $methodCall = $methodCall->type($specialValue);
-                  break;
-          }
+      switch ($specialHandle) {
+        case 'limit':
+          $methodCall = $methodCall->limit($specialValue);
+          break;
+        case 'offset':
+          $methodCall = $methodCall->offset($specialValue);
+          break;
+        case 'order':
+          $methodCall = $methodCall->order($specialValue);
+          break;
+        case 'type':
+          $methodCall = $methodCall->type($specialValue);
+          break;
       }
-      return $methodCall;
+    }
+    return $methodCall;
   }
 
 }
