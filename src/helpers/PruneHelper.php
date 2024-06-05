@@ -72,17 +72,6 @@ class PruneHelper
       $objectIsElementQuery = true;
     }
 
-    // if any keys in $pruneDefinition begin with dollar sign ($),
-    // collect those keys & values into $specials
-
-    // $specials = [];
-    // foreach ($pruneDefinition as $handle => $field) {
-    //   if (StringHelper::startsWith($handle, '$')) {
-    //     $specials[substr($handle, 1)] = $handle;
-    //     unset($pruneDefinition[$handle]);
-    //   }
-    // }
-
     $objectReturn = [];
 
     if ($objectIsElementQuery) {
@@ -221,53 +210,9 @@ class PruneHelper
       
         return $this->pruneObject($fieldValue, $index, $relatedElementObjectPruneDefinition);
       }
-
-      if ($fieldValue instanceof MatrixBlockQuery) {
-        $matrixBlocks = $fieldValue->all();
-        foreach ($matrixBlocks as $i => $block) {
-          $blockType = $block->getType();
-          $blockFieldValues = $block->getFieldValues();
-          foreach ($blockFieldValues as $key => $blockFieldValue) {
-            if ($blockFieldValue instanceof ElementQuery) {
-              $prunedData[$index][$definitionHandle][$blockType->handle][$key] = $this->getRelatedElementData($blockFieldValue);
-            } else {
-              $prunedData[$index][$definitionHandle][$blockType->handle][$key] = $blockFieldValue;
-            }
-          }
-        }
-      }
       
       return $fieldValue;
     }
-  }
-
-  private function getRelatedElementData($field, $isNested = false)
-  {
-    if ($this->relatedElementDepthCount >= $this->relatedElementDepthLimit) {
-      return null;
-    }
-    $relatedElements = $field->all();
-    $relatedElementFieldValues = [];
-    foreach ($relatedElements as $i => $relatedElement) {
-
-      $relatedElementNativeFieldValues = $relatedElement->getAttributes();
-      $relatedElementCustomFieldValues = $relatedElement->getFieldValues();
-      $relatedElementFieldValues = array_merge($relatedElementNativeFieldValues, $relatedElementCustomFieldValues);
-
-      continue;
-      foreach ($relatedElementFieldValues as $key => $value) {
-        if ($value instanceof ElementQuery) {
-          // if ($isNested) {
-          $this->relatedElementDepthCount++;
-          // }
-          $relatedElementFieldValues[$key] = $this->getRelatedElementData($value, true);
-          // if ($isNested) {
-          $this->relatedElementDepthCount--;
-          // }
-        }
-      }
-    }
-    return $relatedElementFieldValues;
   }
 
   function isArrayAssociative($arr) {
