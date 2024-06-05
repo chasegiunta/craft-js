@@ -64,41 +64,45 @@ class PruneHelper
   }
 
   public function pruneObject($object, $index, $pruneDefinition) {
-    $objectIsElement = false;
-    $objectIsElementQuery = false;
-    if ($object instanceof Element) {
-      $objectIsElement = true;
-    } elseif ($object instanceof ElementQuery) {
-      $objectIsElementQuery = true;
+    if (!is_object($object)) {
+      return ['error' => '$object is not an object'];
     }
 
-    $objectReturn = [];
+    // For ElementQuery, handle all elements returned by the query
+    if ($object instanceof ElementQuery) {
+      return $this->processElementQuery($object, $index, $pruneDefinition);
+    }
 
-    if ($objectIsElementQuery) {
-      foreach ($object->all() as $key => $element) {
-        foreach ($pruneDefinition as $definitionHandle => $definitionValue) {
-          $objectReturn[$definitionHandle] = $this->getProperty($object, $index, $definitionHandle, $definitionValue, $specials);
-        }
-      }
-    } else {
-      foreach ($pruneDefinition as $definitionHandle => $definitionValue) {
-        $specials = [];
+    // For other objects, handle them directly
+    return $this->processPruneDefinition($object, $index, $pruneDefinition);
+  }
 
-        if (is_array($definitionValue)) {
-          // if any keys in $pruneDefinition begin with dollar sign ($),
-          // collect those keys & values into $specials
-          foreach ($definitionValue as $handle => $value) {
-            if (StringHelper::startsWith($handle, '$')) {
-              $specials[substr($handle, 1)] = $value;
-              unset($definitionValue[$handle]);
-            }
+  private function processElementQuery($elementQuery, $index, $pruneDefinition) {
+    $result = [];
+    foreach ($elementQuery->all() as $element) {
+      $result[] = $this->processPruneDefinition($element, $index, $pruneDefinition);
+    }
+    return $result;
+  }
+
+  private function processPruneDefinition($object, $index, $pruneDefinition) {
+    $result = [];
+    foreach ($pruneDefinition as $field => $details) {
+      $specials = [];
+
+      if (is_array($details)) {
+        // if any keys in $pruneDefinition begin with dollar sign ($),
+        // collect those keys & values into $specials
+        foreach ($details as $handle => $value) {
+          if (StringHelper::startsWith($handle, '$')) {
+            $specials[substr($handle, 1)] = $value;
+            unset($details[$handle]);
           }
         }
-        $objectReturn[$definitionHandle] = $this->getProperty($object, $index, $definitionHandle, $definitionValue, $specials);
       }
+      $result[$field] = $this->getProperty($object, $index, $field, $details, $specials);
     }
-
-    return $objectReturn;
+    return $result;
   }
 
   private function getProperty($object, $index, $definitionHandle, $definitionValue, $specials = []) {
