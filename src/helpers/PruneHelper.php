@@ -68,16 +68,30 @@ class PruneHelper
       return ['error' => '$object is not an object'];
     }
 
+    // Extract specials from pruneDefinition
+    list($pruneDefinition, $specials) = $this->extractSpecials($pruneDefinition);
+
     // For ElementQuery, handle all elements returned by the query
     if ($object instanceof ElementQuery) {
-      return $this->processElementQuery($object, $index, $pruneDefinition);
+      return $this->processElementQuery($object, $index, $pruneDefinition, $specials);
     }
 
     // For other objects, handle them directly
     return $this->processPruneDefinition($object, $index, $pruneDefinition);
   }
 
-  private function processElementQuery($elementQuery, $index, $pruneDefinition) {
+  private function extractSpecials($pruneDefinition) {
+    $specials = [];
+    foreach ($pruneDefinition as $key => $value) {
+        if (strpos($key, '$') === 0) {  // Special keys start with '$'
+            $specials[substr($key, 1)] = $value;
+            unset($pruneDefinition[$key]);
+        }
+    }
+    return [$pruneDefinition, $specials];
+  }
+
+  private function processElementQuery($elementQuery, $index, $pruneDefinition, $specials = []) {
     $result = [];
     foreach ($elementQuery->all() as $element) {
       $result[] = $this->processPruneDefinition($element, $index, $pruneDefinition);
