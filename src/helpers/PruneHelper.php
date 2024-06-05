@@ -18,19 +18,17 @@ class PruneHelper
   private $relatedElementDepthCount = 0;
   private $relatedElementDepthLimit = 1;
 
-  public function pruneData($data, $pruneDefinition, $nested = false)
+  public function pruneData($data, $pruneDefinition)
   {
     if (!is_array($data) || !count($data) > 0) {
       $data = [$data];
     }
 
     $pruneDefinition = $this->normalizePruneDefinition($pruneDefinition);
-
     $prunedData = [];
-    $craftNamespace = 'craft\\elements\\';
 
     foreach ($data as $index => $object) {
-      $prunedData[$index] = $this->pruneObject($object, $index, $pruneDefinition, $nested);
+      $prunedData[$index] = $this->pruneObject($object, $index, $pruneDefinition);
     }
 
     return $prunedData;
@@ -52,16 +50,20 @@ class PruneHelper
 
     // Loop over each item in $pruneDefinition and recursively normalize each item
     foreach ($pruneDefinition as $key => $value) {
-      if (is_bool($value)) {
+      if (is_bool($value) || is_int($value) || is_string($value) || is_null($value) || is_float($value)) {
         continue;
       }
-      $pruneDefinition[$key] = $this->normalizePruneDefinition($value);
+      if (is_array($value) || is_object($value)) {
+        $pruneDefinition[$key] = $this->normalizePruneDefinition($value);
+      } else {
+        throw new \Exception('Prune definition values must be an array, object, integer, string, or null.');
+      }
     }
 
     return $pruneDefinition;
   }
 
-  public function pruneObject($object, $index, $pruneDefinition, $nested = false) {
+  public function pruneObject($object, $index, $pruneDefinition) {
     $objectIsElement = false;
     $objectIsElementQuery = false;
     if ($object instanceof Element) {
@@ -70,24 +72,47 @@ class PruneHelper
       $objectIsElementQuery = true;
     }
 
+    // if any keys in $pruneDefinition begin with dollar sign ($),
+    // collect those keys & values into $specials
+
+    // $specials = [];
+    // foreach ($pruneDefinition as $handle => $field) {
+    //   if (StringHelper::startsWith($handle, '$')) {
+    //     $specials[substr($handle, 1)] = $handle;
+    //     unset($pruneDefinition[$handle]);
+    //   }
+    // }
+
     $objectReturn = [];
 
     if ($objectIsElementQuery) {
       foreach ($object->all() as $key => $element) {
         foreach ($pruneDefinition as $definitionHandle => $definitionValue) {
-          $objectReturn[$definitionHandle] = $this->getProperty($object, $index, $definitionHandle, $definitionValue, $nested);
+          $objectReturn[$definitionHandle] = $this->getProperty($object, $index, $definitionHandle, $definitionValue, $specials);
         }
       }
     } else {
       foreach ($pruneDefinition as $definitionHandle => $definitionValue) {
-        $objectReturn[$definitionHandle] = $this->getProperty($object, $index, $definitionHandle, $definitionValue, $nested);
+        $specials = [];
+
+        if (is_array($definitionValue)) {
+          // if any keys in $pruneDefinition begin with dollar sign ($),
+          // collect those keys & values into $specials
+          foreach ($definitionValue as $handle => $value) {
+            if (StringHelper::startsWith($handle, '$')) {
+              $specials[substr($handle, 1)] = $value;
+              unset($definitionValue[$handle]);
+            }
+          }
+        }
+        $objectReturn[$definitionHandle] = $this->getProperty($object, $index, $definitionHandle, $definitionValue, $specials);
       }
     }
 
     return $objectReturn;
   }
 
-  private function getProperty($object, $index, $definitionHandle, $definitionValue, $nested = false) {
+  private function getProperty($object, $index, $definitionHandle, $definitionValue, $specials = []) {
     
     if ($definitionValue == false) {
       return;
@@ -117,43 +142,50 @@ class PruneHelper
     if (($isElement) && $object->canGetProperty($definitionHandle)) {
       $fieldValue = $object->$definitionHandle;
     } else if ($isElementQuery) {
-      
-      // if ($object->$definitionHandle) {
-      //   $fieldValue = $object->$definitionHandle;
-      // } else {
-      //   $fieldValue = $object->all();
-      // }
 
-      $fieldValue = $object->$definitionHandle->all();
-      // else if ($isElementQuery && $object->type($fieldDefinition)) {
-      //   $fieldValue = $object->type($fieldDefinition);
+      $methodCall = $object->$definitionHandle;
+      // $specials array has any items, loop over
+      if (count($specials) > 0) {
+        foreach ($specials as $specialHandle => $specialValue) {
+          if ($specialHandle == 'limit') {
+            $call = $methodCall->limit($specialValue);
+            continue;
+          }
+          if ($specialHandle == 'offset') {
+            $call = $methodCall->offset($specialValue);
+            continue;
+          }
+          if ($specialHandle == 'order') {
+            $call = $methodCall->order($specialValue);
+            continue;
+          }
+          if ($specialHandle == 'where') {
+            $call = $methodCall->where($specialValue);
+            continue;
+          }
+          if ($specialHandle == 'whereIn') {
+            $call = $methodCall->whereIn($specialValue);
+            continue;
+          }
+          if ($specialHandle == 'type') {
+            $call = $methodCall->type($specialValue);
+            continue;
+          }
+        }
+      }
+
+      $fieldValue = $methodCall->all();
     } else if (isset($object, $definitionHandle)) {
       $fieldValue = $object->$definitionHandle;
     }
     $fieldValueType = gettype($fieldValue);
 
-    // if (isset($nestedPropertyKeys)) {
-    //   // Loop through [nested, property, keys]
-    //   foreach ($nestedPropertyKeys as $nestedPropertyKey) {
-    //     $prunedData[$index][$fieldDefinition][$nestedPropertyKey] = $this->pruneData($fieldValue, "\"$nestedPropertyKey\"", true);
-    //     continue;
-    //   }
-    // }
-
     if ($fieldValue) {
       if ($fieldValueType == NULL) {
         return null;
-        // $nested ?
-        //   $prunedData[$definitionHandle] = null :
-        //   $prunedData[$index][$definitionHandle] = null;
-        // continue;
       }
       if (in_array($fieldValueType, ['string', 'integer', 'boolean', 'double'])) {
-        if ($nested) {
-          $prunedData = $fieldValue;
-        } else {
-          return $fieldValue;
-        }
+        return $fieldValue;
       }
       if (is_array($fieldValue)) {
         // If all the array items of $fieldValue are instance of Element, prune the object
@@ -168,12 +200,7 @@ class PruneHelper
           return $fieldValue;
         }
 
-
-        if ($nested) {
-          $prunedData[$definitionHandle] = $fieldValue;
-        } else {
-          return $fieldValue;
-        }
+        return $fieldValue;
       }
 
       if ($fieldValue instanceof Element) {
@@ -181,17 +208,6 @@ class PruneHelper
       }
 
       if ($fieldValue instanceof ElementQuery) {
-
-        // if (isset($nestedPropertyKeys)) {
-        //   // Loop through [nested, property, keys]
-        //   foreach ($nestedPropertyKeys as $nestedPropertyKey) {
-        //     $prunedData[$index][$definitionHandle][$nestedPropertyKey] = $this->pruneData($fieldValue, "\"$nestedPropertyKey\"", true);
-        //     continue;
-        //   }
-        //   continue;
-        // }
-
-        // $relatedElementObject = $this->getRelatedElementData($fieldValue);
         $relatedElementObjectPruneDefinition = array();
 
         $definitionValueType = gettype($definitionValue);
@@ -203,7 +219,7 @@ class PruneHelper
           $relatedElementObjectPruneDefinition[$definitionValue] = true;
         }
       
-        return $this->pruneObject($fieldValue, $index, $relatedElementObjectPruneDefinition, $nested);
+        return $this->pruneObject($fieldValue, $index, $relatedElementObjectPruneDefinition);
       }
 
       if ($fieldValue instanceof MatrixBlockQuery) {
@@ -221,11 +237,7 @@ class PruneHelper
         }
       }
       
-      if ($nested) {
-        $prunedData[$definitionHandle] = $fieldValue;
-      } else {
-        return $fieldValue;
-      }
+      return $fieldValue;
     }
   }
 
