@@ -135,32 +135,7 @@ class PruneHelper
       $methodCall = $object->$definitionHandle;
       // $specials array has any items, loop over
       if (count($specials) > 0) {
-        foreach ($specials as $specialHandle => $specialValue) {
-          if ($specialHandle == 'limit') {
-            $call = $methodCall->limit($specialValue);
-            continue;
-          }
-          if ($specialHandle == 'offset') {
-            $call = $methodCall->offset($specialValue);
-            continue;
-          }
-          if ($specialHandle == 'order') {
-            $call = $methodCall->order($specialValue);
-            continue;
-          }
-          if ($specialHandle == 'where') {
-            $call = $methodCall->where($specialValue);
-            continue;
-          }
-          if ($specialHandle == 'whereIn') {
-            $call = $methodCall->whereIn($specialValue);
-            continue;
-          }
-          if ($specialHandle == 'type') {
-            $call = $methodCall->type($specialValue);
-            continue;
-          }
-        }
+        $this->applySpecials($methodCall, $specials);
       }
 
       $fieldValue = $methodCall->all();
@@ -220,4 +195,31 @@ class PruneHelper
     if ([] == $arr) return true;
     return array_keys($arr)!== range(0, count($arr) - 1);
   }
+
+  private function applySpecials($methodCall, $specials) {
+    foreach ($specials as $specialHandle => $specialValue) {
+          switch ($specialHandle) {
+              case 'limit':
+                  $methodCall = $methodCall->limit($specialValue);
+                  break;
+              case 'offset':
+                  $methodCall = $methodCall->offset($specialValue);
+                  break;
+              case 'order':
+                  $methodCall = $methodCall->order($specialValue);
+                  break;
+              case 'where':
+                  $methodCall = $methodCall->where($specialValue);
+                  break;
+              case 'whereIn':
+                  $methodCall = $methodCall->whereIn($specialValue);
+                  break;
+              case 'type':
+                  $methodCall = $methodCall->type($specialValue);
+                  break;
+          }
+      }
+      return $methodCall;
+  }
+
 }
