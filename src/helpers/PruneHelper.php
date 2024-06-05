@@ -120,10 +120,7 @@ class PruneHelper
   }
 
   private function getProperty($object, $index, $definitionHandle, $definitionValue, $specials = []) {
-    
-    if ($definitionValue == false) {
-      return;
-    }
+    if ($definitionValue == false) return;
 
     // if $object is not an object return error
     if (!is_object($object)) {
@@ -136,69 +133,60 @@ class PruneHelper
       return null;
     }
 
-    $fieldValue = null;
+    $fieldValue = $object[$definitionHandle] ?? null;
 
     if (($object[$definitionHandle] instanceof Element) && $object->canGetProperty($definitionHandle)) {
       $fieldValue = $object->$definitionHandle;
     } else if ($object[$definitionHandle] instanceof ElementQuery) {
-
       $methodCall = $object->$definitionHandle;
-      // $specials array has any items, loop over
-      if (count($specials) > 0) {
-        $this->applySpecials($methodCall, $specials);
-      }
+      $methodCall = $this->applySpecials($methodCall, $specials);
 
       $fieldValue = $methodCall->all();
     } else if (isset($object, $definitionHandle)) {
       $fieldValue = $object->$definitionHandle;
     }
 
-    $fieldValueType = gettype($fieldValue);
 
-    if ($fieldValue) {
-      if ($fieldValueType == NULL) {
-        return null;
-      }
-      if (in_array($fieldValueType, ['string', 'integer', 'boolean', 'double'])) {
-        return $fieldValue;
-      }
-      if (is_array($fieldValue)) {
-        // If all the array items of $fieldValue are instance of Element, prune the object
-        $isArrayOfElements = array_reduce($fieldValue, function($carry, $item) {
-            return $carry && $item instanceof Element;
-        }, true);
-
-        if ($isArrayOfElements) {
-          foreach ($fieldValue as $key => $item) {
-            $fieldValue[$key] = $this->pruneObject($item, $index, $definitionValue);
-          }
-          return $fieldValue;
-        }
-
-        return $fieldValue;
-      }
-
-      if ($fieldValue instanceof Element) {
-        return $this->pruneObject($fieldValue, $index, $definitionValue);
-      }
-
-      if ($fieldValue instanceof ElementQuery) {
-        $relatedElementObjectPruneDefinition = array();
-
-        $definitionValueType = gettype($definitionValue);
-        if (in_array($definitionValueType, ['array'])) {
-          foreach ($definitionValue as $key => $nestedPropertyKey) {
-            $relatedElementObjectPruneDefinition[$nestedPropertyKey] = true;
-          }
-        } else {
-          $relatedElementObjectPruneDefinition[$definitionValue] = true;
-        }
-      
-        return $this->pruneObject($fieldValue, $index, $relatedElementObjectPruneDefinition);
-      }
-      
+    if (is_scalar($fieldValue) || is_null($fieldValue)) {
       return $fieldValue;
     }
+
+    if (is_array($fieldValue)) {
+      // If all the array items of $fieldValue are instance of Element, prune the object
+      $isArrayOfElements = array_reduce($fieldValue, function($carry, $item) {
+          return $carry && $item instanceof Element;
+      }, true);
+
+      if ($isArrayOfElements) {
+        foreach ($fieldValue as $key => $item) {
+          $fieldValue[$key] = $this->pruneObject($item, $index, $definitionValue);
+        }
+        return $fieldValue;
+      }
+
+      return $fieldValue;
+    }
+
+    if ($fieldValue instanceof Element) {
+      return $this->pruneObject($fieldValue, $index, $definitionValue);
+    }
+
+    if ($fieldValue instanceof ElementQuery) {
+      $relatedElementObjectPruneDefinition = array();
+
+      $definitionValueType = gettype($definitionValue);
+      if (in_array($definitionValueType, ['array'])) {
+        foreach ($definitionValue as $key => $nestedPropertyKey) {
+          $relatedElementObjectPruneDefinition[$nestedPropertyKey] = true;
+        }
+      } else {
+        $relatedElementObjectPruneDefinition[$definitionValue] = true;
+      }
+    
+      return $this->pruneObject($fieldValue, $index, $relatedElementObjectPruneDefinition);
+    }
+
+    return $fieldValue;
   }
 
   function isArrayAssociative($arr) {
