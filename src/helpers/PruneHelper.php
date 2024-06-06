@@ -81,6 +81,9 @@ class PruneHelper
   }
 
   private function extractSpecials($pruneDefinition) {
+    // If $pruneDefinition is not an array, return it as-is
+    if (!is_array($pruneDefinition)) return [$pruneDefinition, []];
+
     $specials = [];
     foreach ($pruneDefinition as $key => $value) {
         if (strpos($key, '$') === 0) {  // Special keys start with '$'
@@ -101,19 +104,10 @@ class PruneHelper
 
   private function processPruneDefinition($object, $index, $pruneDefinition) {
     $result = [];
-    foreach ($pruneDefinition as $field => $details) {
-      $specials = [];
 
-      if (is_array($details)) {
-        // if any keys in $pruneDefinition begin with dollar sign ($),
-        // collect those keys & values into $specials
-        foreach ($details as $handle => $value) {
-          if (StringHelper::startsWith($handle, '$')) {
-            $specials[substr($handle, 1)] = $value;
-            unset($details[$handle]);
-          }
-        }
-      }
+    foreach ($pruneDefinition as $field => $details) {
+      // Extract specials from pruneDefinition
+      list($details, $specials) = $this->extractSpecials($details);
       $result[$field] = $this->getProperty($object, $index, $field, $details, $specials);
     }
     return $result;
