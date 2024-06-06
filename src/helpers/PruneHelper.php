@@ -28,6 +28,7 @@ class PruneHelper
     $prunedData = [];
 
     foreach ($data as $index => $object) {
+      // Step into each element (or object) and prune it according to the $pruneDefinition
       $prunedData[$index] = $this->pruneObject($object, $index, $pruneDefinition);
     }
 
