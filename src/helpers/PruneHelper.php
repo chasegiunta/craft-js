@@ -186,7 +186,11 @@ class PruneHelper
   function isArrayAssociative($arr) {
     if (is_array($arr) === false) return false;
     if ([] == $arr) return true;
-    return array_keys($arr)!== range(0, count($arr) - 1);
+    if (array_keys($arr) !== range(0, count($arr) - 1)) return true;
+    foreach ($arr as $value) {
+        if (is_array($value) && $this->isArrayAssociative($value)) return true;
+    }
+    return false;
   }
 
   private function applySpecials($methodCall, $specials) {
