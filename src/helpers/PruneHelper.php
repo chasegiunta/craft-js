@@ -196,22 +196,8 @@ class PruneHelper
 
   private function applySpecials($methodCall, $specials) {
     foreach ($specials as $specialHandle => $specialValue) {
-      switch ($specialHandle) {
-        case 'limit':
-          $methodCall = $methodCall->limit($specialValue);
-          break;
-        case 'offset':
-          $methodCall = $methodCall->offset($specialValue);
-          break;
-        case 'order':
-          $methodCall = $methodCall->order($specialValue);
-          break;
-        case 'type':
-          $methodCall = $methodCall->type($specialValue);
-          break;
-      }
+      $methodCall = $methodCall->$specialHandle($specialValue);
     }
     return $methodCall;
   }
-
 }
