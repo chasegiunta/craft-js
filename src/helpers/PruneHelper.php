@@ -43,7 +43,7 @@ class PruneHelper
 
     // If $pruneDefinition is a non-associative array,
     // Convert it to an associative array with { item: true }
-    if (is_array($pruneDefinition) && !$this->isArrayAssociative($pruneDefinition)) {
+    if (is_array($pruneDefinition) && !$this->isAssociativeArray($pruneDefinition)) {
       $pruneDefinition = array_fill_keys($pruneDefinition, true);
     } else if (!is_array($pruneDefinition) || !count($pruneDefinition) > 0) {
       $pruneDefinition = [$pruneDefinition];
@@ -154,13 +154,8 @@ class PruneHelper
 
       if ($isArrayOfElements) {
         foreach ($fieldValue as $key => $element) {
-          if ($this->isArrayAssociative($definitionValue) && $this->allArrayKeysAreUnderscored($definitionValue)) {
+          if ($this->isAssociativeArray($definitionValue) && $this->allArrayKeysAreUnderscored($definitionValue)) {
             // Assume associative array is keyed by entry (matrix block) types
-            // Remove underscore prefixes from $definitionValue(array) keys
-            // $elementTypes = array_map(function($key) {
-            //     return ltrim($key, '_');
-            // }, array_keys($definitionValue));
-
             foreach ($definitionValue as $underscoredElementType => $typePruneDefinition) {
               if ($element->type->handle === ltrim($underscoredElementType, '_')) {
                 $fieldValue[$key] = $this->pruneObject($element, $index, $definitionValue[$underscoredElementType]);
@@ -198,12 +193,12 @@ class PruneHelper
     return $fieldValue;
   }
 
-  function isArrayAssociative($arr) {
+  function isAssociativeArray($arr) {
     if (is_array($arr) === false) return false;
     if ([] == $arr) return true;
     if (array_keys($arr) !== range(0, count($arr) - 1)) return true;
     foreach ($arr as $value) {
-        if (is_array($value) && $this->isArrayAssociative($value)) return true;
+        if (is_array($value) && $this->isAssociativeArray($value)) return true;
     }
     return false;
   }
