@@ -2,22 +2,11 @@
 
 namespace chasegiunta\craftjs\helpers;
 
-use Craft;
 use craft\base\Element;
 use \craft\elements\db\ElementQuery;
-use craft\fields\BaseRelationField;
-use craft\helpers\StringHelper;
-use craft\elements\db\MatrixBlockQuery;
-
-use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
-use Throwable;
 
 class PruneHelper
 {
-
-  private $relatedElementDepthCount = 0;
-  private $relatedElementDepthLimit = 1;
-
   public function pruneData($data, $pruneDefinition)
   {
     if (!is_array($data) || !count($data) > 0) {
