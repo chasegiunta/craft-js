@@ -153,8 +153,22 @@ class PruneHelper
       }, true);
 
       if ($isArrayOfElements) {
-        foreach ($fieldValue as $key => $item) {
-          $fieldValue[$key] = $this->pruneObject($item, $index, $definitionValue);
+        foreach ($fieldValue as $key => $element) {
+          if ($this->isArrayAssociative($definitionValue) && $this->allArrayKeysAreUnderscored($definitionValue)) {
+            // Assume associative array is keyed by entry (matrix block) types
+            // Remove underscore prefixes from $definitionValue(array) keys
+            // $elementTypes = array_map(function($key) {
+            //     return ltrim($key, '_');
+            // }, array_keys($definitionValue));
+
+            foreach ($definitionValue as $underscoredElementType => $typePruneDefinition) {
+              if ($element->type->handle === ltrim($underscoredElementType, '_')) {
+                $fieldValue[$key] = $this->pruneObject($element, $index, $definitionValue[$underscoredElementType]);
+              }
+            }
+          } else {
+            $fieldValue[$key] = $this->pruneObject($element, $index, $definitionValue);
+          }
         }
         return $fieldValue;
       }
@@ -192,6 +206,16 @@ class PruneHelper
         if (is_array($value) && $this->isArrayAssociative($value)) return true;
     }
     return false;
+  }
+
+  private function allArrayKeysAreUnderscored($arr) {
+    $keys = array_keys($arr);
+    foreach ($keys as $key) {
+      if (strpos($key, '_')!== 0) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private function applySpecials($methodCall, $specials) {
