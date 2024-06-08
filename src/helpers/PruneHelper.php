@@ -105,17 +105,8 @@ class PruneHelper
 
   private function getProperty($object, $definitionHandle, $definitionValue, $specials = []) {
     if ($definitionValue == false) return;
-
-    // if $object is not an object return error
-    if (!is_object($object)) {
-      return [
-        'error' => 'Element is not an object'
-      ];
-    }
-
-    if (!isset($object[$definitionHandle])) {
-      return null;
-    }
+    if (!is_object($object)) return ['error' => 'Not an object'];
+    if (!isset($object[$definitionHandle])) return null;
 
     $fieldValue = $object[$definitionHandle] ?? null;
 
