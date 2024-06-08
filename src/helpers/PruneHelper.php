@@ -29,7 +29,7 @@ class PruneHelper
 
     foreach ($data as $index => $object) {
       // Step into each element (or object) and prune it according to the $pruneDefinition
-      $prunedData[$index] = $this->pruneObject($object, $index, $pruneDefinition);
+      $prunedData[$index] = $this->pruneObject($object, $pruneDefinition);
     }
 
     return $prunedData;
@@ -64,7 +64,7 @@ class PruneHelper
     return $pruneDefinition;
   }
 
-  public function pruneObject($object, $index, $pruneDefinition) {
+  public function pruneObject($object, $pruneDefinition) {
     if (!is_object($object)) {
       return ['error' => '$object is not an object'];
     }
@@ -74,11 +74,11 @@ class PruneHelper
 
     // For ElementQuery, handle all elements returned by the query
     if ($object instanceof ElementQuery) {
-      return $this->processElementQuery($object, $index, $pruneDefinition, $specials);
+      return $this->processElementQuery($object, $pruneDefinition, $specials);
     }
 
     // For other objects, handle them directly
-    return $this->processPruneDefinition($object, $index, $pruneDefinition);
+    return $this->processPruneDefinition($object, $pruneDefinition);
   }
 
   private function extractSpecials($pruneDefinition) {
@@ -95,26 +95,26 @@ class PruneHelper
     return [$pruneDefinition, $specials];
   }
 
-  private function processElementQuery($elementQuery, $index, $pruneDefinition, $specials = []) {
+  private function processElementQuery($elementQuery, $pruneDefinition, $specials = []) {
     $result = [];
     foreach ($elementQuery->all() as $element) {
-      $result[] = $this->processPruneDefinition($element, $index, $pruneDefinition);
+      $result[] = $this->processPruneDefinition($element, $pruneDefinition);
     }
     return $result;
   }
 
-  private function processPruneDefinition($object, $index, $pruneDefinition) {
+  private function processPruneDefinition($object, $pruneDefinition) {
     $result = [];
 
     foreach ($pruneDefinition as $field => $details) {
       // Extract specials from pruneDefinition
       list($details, $specials) = $this->extractSpecials($details);
-      $result[$field] = $this->getProperty($object, $index, $field, $details, $specials);
+      $result[$field] = $this->getProperty($object, $field, $details, $specials);
     }
     return $result;
   }
 
-  private function getProperty($object, $index, $definitionHandle, $definitionValue, $specials = []) {
+  private function getProperty($object, $definitionHandle, $definitionValue, $specials = []) {
     if ($definitionValue == false) return;
 
     // if $object is not an object return error
@@ -158,11 +158,11 @@ class PruneHelper
             // Assume associative array is keyed by entry (matrix block) types
             foreach ($definitionValue as $underscoredElementType => $typePruneDefinition) {
               if ($element->type->handle === ltrim($underscoredElementType, '_')) {
-                $fieldValue[$key] = $this->pruneObject($element, $index, $definitionValue[$underscoredElementType]);
+                $fieldValue[$key] = $this->pruneObject($element, $definitionValue[$underscoredElementType]);
               }
             }
           } else {
-            $fieldValue[$key] = $this->pruneObject($element, $index, $definitionValue);
+            $fieldValue[$key] = $this->pruneObject($element, $definitionValue);
           }
         }
         return $fieldValue;
@@ -172,7 +172,7 @@ class PruneHelper
     }
 
     if ($fieldValue instanceof Element) {
-      return $this->pruneObject($fieldValue, $index, $definitionValue);
+      return $this->pruneObject($fieldValue, $definitionValue);
     }
 
     if ($fieldValue instanceof ElementQuery) {
@@ -187,7 +187,7 @@ class PruneHelper
         $relatedElementObjectPruneDefinition[$definitionValue] = true;
       }
     
-      return $this->pruneObject($fieldValue, $index, $relatedElementObjectPruneDefinition);
+      return $this->pruneObject($fieldValue, $relatedElementObjectPruneDefinition);
     }
 
     return $fieldValue;
