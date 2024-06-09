@@ -108,19 +108,7 @@ class PruneHelper
     if (!is_object($object)) return ['error' => 'Not an object'];
     if (!isset($object[$definitionHandle])) return null;
 
-    $fieldValue = $object[$definitionHandle] ?? null;
-
-    if (($object[$definitionHandle] instanceof Element) && $object->canGetProperty($definitionHandle)) {
-      $fieldValue = $object->$definitionHandle;
-    } else if ($object[$definitionHandle] instanceof ElementQuery) {
-      $methodCall = $object->$definitionHandle;
-      $methodCall = $this->applySpecials($methodCall, $specials);
-
-      $fieldValue = $methodCall->all();
-    } else if (isset($object, $definitionHandle)) {
-      $fieldValue = $object->$definitionHandle;
-    }
-
+    $fieldValue = $this->getFieldValue($object, $definitionHandle, $specials);
 
     if (is_scalar($fieldValue) || is_null($fieldValue)) {
       return $fieldValue;
@@ -170,6 +158,21 @@ class PruneHelper
       return $this->pruneObject($fieldValue, $relatedElementObjectPruneDefinition);
     }
 
+    return $fieldValue;
+  }
+
+  function getFieldValue($object, $definitionHandle, $specials = []) {
+    $fieldValue = $object[$definitionHandle] ?? null;
+
+    if (($object[$definitionHandle] instanceof Element) && $object->canGetProperty($definitionHandle)) {
+      $fieldValue = $object->$definitionHandle;
+    } else if ($object[$definitionHandle] instanceof ElementQuery) {
+      $methodCall = $object->$definitionHandle;
+      $methodCall = $this->applySpecials($methodCall, $specials);
+      $fieldValue = $methodCall->all();
+    } else if (isset($object, $definitionHandle)) {
+      $fieldValue = $object->$definitionHandle;
+    }
     return $fieldValue;
   }
 
