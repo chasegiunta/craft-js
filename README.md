@@ -10,11 +10,7 @@
 > If you find this concept interesting, please improve on it where you can and submit a PR. This is very much a learning project for me. I'm not a PHP developer by profession, nor do I work with Craft CMS in my day job, though I use it on a volunteer project. Any suggestions for code cleanup, improvements, future ideas, etc are welcome!
 
 > [!CAUTION]
-> Not suitable for production. Probably poses some security risks.
-
-#### Vue app usage demo
-
-https://github.com/chasegiunta/craft-js/assets/1377169/e2e8d096-94d0-45e2-8a80-6c6a26263440
+> Not suitable for production (yet)
 
 #### Basic Usage
 
@@ -76,6 +72,55 @@ await craft
   });
 ```
 
+#### Prune Responses
+
+```js
+const posts = craft
+  .entries()
+  .section("blog")
+  // Basic usage: simply pass an array of fields
+  .prune(["title", "author", "body", "url", "featuredImage"])
+  .all();
+```
+
+```js
+const posts = craft
+  .entries()
+  .section("blog")
+  // Advanced object syntax
+  .prune({
+    title: true,
+    id: true,
+    uri: true,
+    // Related fields simple array syntax
+    author: ["username", "email"],
+    // Related fields object syntax
+    mainImage: {
+      url: true,
+      uploader: {
+        // Nested related fields
+        email: true,
+        username: true,
+      },
+    },
+    // Matrix fields
+    contentBlocks: {
+      // Denote query traits with $ prefix
+      // https://www.yiiframework.com/doc/api/2.0/yii-db-querytrait
+      $limit: 10,
+      // Designate distinct prune fields per type with _ prefix
+      _body: {
+        body: true,
+        intro: true,
+      },
+      _fullWidthImage: {
+        image: ["url", "alt"],
+      },
+    },
+  })
+  .all();
+```
+
 ---
 
 ## Future Idea & Todos:
@@ -122,9 +167,11 @@ await craft
 
 </details>
 
-- [ ] Flesh out `prune()` API
-  - [ ] Nested related elements
-  - [ ] Conditional data (`{% if block.type === 'heading' %}`)
+- [x] Flesh out `prune()` API
+  - [x] Nested related elements
+  - [x] Conditional prune by type (`{% if block.type === 'heading' %}`)
+  - [ ] Call functions on fields before response
+  - [ ] Image transforms
 - [ ] Generate type interfaces
   - [ ] Craft element classes
   - [ ] Extended Craft behavior classes (eg `craft.superTable`)
@@ -132,16 +179,17 @@ await craft
 - [ ] User authentication
 - [ ] Commerce CRUD elements
 - [ ] Routes fetching
-- [ ] Image transforms
 - [ ] Proper Tests
   - [ ] Frontend
   - [ ] Backend
-- [ ] Audit for securtiy
-- [ ] Audit for code necessity
+
+#### Vue app usage demo (outdated prune API)
+
+https://github.com/chasegiunta/craft-js/assets/1377169/e2e8d096-94d0-45e2-8a80-6c6a26263440
 
 ## Requirements
 
-This plugin requires Craft CMS 4.3.10 or later, and PHP 8.0.2 or later.
+This plugin requires Craft CMS 5.0.0 or later, and PHP 8.0.2 or later.
 
 ## Installation
 
