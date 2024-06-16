@@ -3,7 +3,8 @@
 namespace chasegiunta\craftjs\helpers;
 
 use craft\base\Element;
-use \craft\elements\db\ElementQuery;
+use craft\elements\db\ElementQuery;
+use craft\htmlfield\HtmlFieldData;
 
 class PruneHelper
 {
@@ -106,7 +107,6 @@ class PruneHelper
   private function getProperty($object, $definitionHandle, $definitionValue, $specials = []) {
     if ($definitionValue == false) return;
     if (!is_object($object)) return ['error' => 'Not an object'];
-    if (!isset($object[$definitionHandle])) return null;
 
     $fieldValue = $this->getFieldValue($object, $definitionHandle, $specials);
 
@@ -158,15 +158,29 @@ class PruneHelper
       return $this->pruneObject($fieldValue, $relatedElementObjectPruneDefinition);
     }
 
+    if (is_object($fieldValue)) {
+      if ($fieldValue instanceof HtmlFieldData) {
+        return $fieldValue;
+      }
+      return $this->pruneObject($fieldValue, $definitionValue);
+    }
+
     return $fieldValue;
   }
 
   function getFieldValue($object, $definitionHandle, $specials = []) {
-    $fieldValue = $object[$definitionHandle] ?? null;
 
-    if (($object[$definitionHandle] instanceof Element) && $object->canGetProperty($definitionHandle)) {
+    $fieldValue = null;
+
+    if (is_object($object) && isset($object->$definitionHandle)) {
       $fieldValue = $object->$definitionHandle;
-    } else if ($object[$definitionHandle] instanceof ElementQuery) {
+    } else {
+      $fieldValue = $object[$definitionHandle];
+    }
+
+    if (($fieldValue instanceof Element) && $object->canGetProperty($definitionHandle)) {
+      $fieldValue = $object->$definitionHandle;
+    } else if ($fieldValue instanceof ElementQuery) {
       $methodCall = $object->$definitionHandle;
       $methodCall = $this->applySpecials($methodCall, $specials);
       $fieldValue = $methodCall->all();
