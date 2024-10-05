@@ -312,16 +312,8 @@ class QueryHandler extends Component
       'pageSize' => $queryBuilder->limit ?: 100,
     ]);
 
-    $paginated = Paginate::create($paginator);
+    $paginationInfo = Paginate::create($paginator);
     $data = $paginator->getPageResults();
-
-    $paginationInfo = [
-      'totalPages' => $paginated->totalPages,
-      'currentPage' => $paginated->currentPage,
-      'total' => $paginated->total,
-      'first' => $paginated->first,
-      'last' => $paginated->last,
-    ];
 
     return [$data, $paginationInfo];
   }
