@@ -55,7 +55,7 @@ class QueryHandler extends Component
   protected ?string $cacheKey = null;
   protected $craftElementClass = null;
   protected $customClass = null;
-  protected bool $paginate = false;
+  protected bool|int $paginate = false;
 
   public function handleSingleQuery(array $params)
   {
