@@ -56,6 +56,7 @@ class QueryHandler extends Component
   protected $craftElementClass = null;
   protected $customClass = null;
   protected bool|int $paginate = false;
+  protected ?int $limit = 100;
 
   public function handleSingleQuery(array $params)
   {
@@ -70,6 +71,11 @@ class QueryHandler extends Component
 
     if (isset($this->params['paginate'])) {
       $this->paginate = $this->params['paginate'];
+    }
+
+    if (isset($this->params['limit'])) {
+      // If limit is set to 'null', set it to -1
+      $this->limit = strtolower($this->params['limit']) == 'null' ? -1 : $this->params['limit'];
     }
 
     $this->craftElementClass = $this->checkForCraftElementClass();
@@ -100,9 +106,6 @@ class QueryHandler extends Component
       $this->params['select'] = implode(',', $select);
 
       $queryBuilder->select($this->params['select']);
-      // if (is_object($queryBuilder)) {
-      //   $queryBuilder->select($this->params['select']);
-      // }
     }
 
     if (isset($this->params['with'])) {
@@ -111,6 +114,8 @@ class QueryHandler extends Component
     }
 
     if ($this->craftElementClass) {
+      // Apply limit (Defaults to 100, same as Craft)
+      $queryBuilder->limit($this->limit);
       if ($this->paginate) {
         [$data, $paginationInfo] = $this->handleElementQueryPagination($queryBuilder, $this->paginate);
       } else {
@@ -307,9 +312,10 @@ class QueryHandler extends Component
 
   private function handleElementQueryPagination($queryBuilder, $paginate)
   {
+    // Set limit(null) to return all results and then paginate them
     $paginator = new Paginator((clone $queryBuilder)->limit(null), [
       'currentPage' => $paginate,
-      'pageSize' => $queryBuilder->limit ?: 100,
+      'pageSize' => $this->limit,
     ]);
 
     $paginationInfo = Paginate::create($paginator);

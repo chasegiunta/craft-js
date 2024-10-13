@@ -30,7 +30,7 @@ interface UserGroup {
 
 export interface ElementQuery {
   [x: string]: any;
-  limit(limit: number): ElementQuery;
+  limit(limit: number | null): ElementQuery;
   orderBy(order: string): ElementQuery;
   paginate(page: number): ElementQuery;
   prune(items: string[]): ElementQuery;
